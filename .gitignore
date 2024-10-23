@@ -25,7 +25,8 @@ target/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 
-bindings/*
+# Generated types file. If backend types change, frontend should break.
+frontend/bindings.ts
 
 # frontend
 # Logs
@@ -60,3 +61,4 @@ dist-ssr
 *.db
 *.sqlite
 *.sqlite3
+docker_data/*

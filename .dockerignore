@@ -1,0 +1,16 @@
+3dassets/*
+dist/*
+node_modules/*
+target/*
+.env
+*.db
+*.sqlite3
+*.sqlite3
+*.tsbuildinfo
+docker_data/*
+docker-compose.yaml
+Dockerfile
+.env.example
+README.md
+.gitignore
+.git/*

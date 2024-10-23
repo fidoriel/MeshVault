@@ -1,8 +1,14 @@
 use axum::extract::State;
-use axum::{response::Html, routing::get, Router};
+use axum::{http::StatusCode, response::Html, routing::get, Router};
 use serde_derive::Deserialize;
+use std::io::{self, Write};
 use std::path::PathBuf;
 use std::sync::Arc;
+use tower_http::cors::{Any, CorsLayer};
+use tower_http::{
+    services::{ServeDir, ServeFile},
+    trace::TraceLayer,
+};
 use url::Url;
 
 mod types;
@@ -14,6 +20,7 @@ use parse_library::find_modelpack_directories;
 #[derive(Clone, Debug, Deserialize)]
 struct Config {
     libraries_path: PathBuf,
+    host: String,
 }
 
 #[derive(Clone)]
@@ -44,17 +51,29 @@ async fn main() {
         Err(error) => panic!("{:#?}", error),
     };
 
+    let cors = CorsLayer::new()
+        .allow_origin(Any)
+        .allow_methods(Any)
+        .allow_headers(Any);
+
     let api = Router::new()
         .route("/lib/", get(paths))
         .route("/", get(hello_world));
 
-    let app = Router::new()
-        .route("/", get(hello_world))
-        .nest("/api/", api);
+    let serve_dir = ServeDir::new("dist");
 
-    let listener = tokio::net::TcpListener::bind("localhost:3000")
+    let app = Router::new()
+        .nest("/api/", api)
+        .nest_service("/3d", ServeDir::new("3dassets"))
+        .route_service("/", ServeFile::new("dist/index.html"))
+        .fallback_service(serve_dir);
+
+    let listener = tokio::net::TcpListener::bind(config.host.to_string())
         .await
         .unwrap();
+
+    println!("Server running on {}", config.host);
+    io::stdout().flush().unwrap(); // Flush the output immediately
 
     axum::serve(listener, app).await.unwrap();
 }
