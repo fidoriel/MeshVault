@@ -1,0 +1,9 @@
+CREATE TABLE posts (
+    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    title VARCHAR NOT NULL,
+    name VARCHAR NOT NULL UNIQUE,
+    license VARCHAR,
+    author VARCHAR,
+    path VARCHAR,
+    origin VARCHAR
+)
