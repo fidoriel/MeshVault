@@ -8,7 +8,15 @@ name = "meshvault"
 path = "backend/main.rs"
 
 [dependencies]
+anyhow = "1.0.91"
 axum = "0.7.7"
 diesel = { version = "2.2.0", features = ["sqlite", "returning_clauses_for_sqlite_3_35"] }
+dotenvy = "0.15.7"
+envy = "0.4.2"
+serde = "1.0.213"
+serde_derive = "1.0.213"
 stl-thumb = "0.5.0"
-tokio = { version = "1.41.0", features = ["macros", "rt-multi-thread"] }
+tokio = { version = "1.41.0", features = ["full"] }
+ts-rs = "10.0.0"
+url = "2.5.2"
+url_serde = "0.2.0"
