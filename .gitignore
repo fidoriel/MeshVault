@@ -62,3 +62,4 @@ dist-ssr
 *.sqlite
 *.sqlite3
 docker_data/*
+local_data/*

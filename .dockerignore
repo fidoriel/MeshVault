@@ -14,3 +14,4 @@ Dockerfile
 README.md
 .gitignore
 .git/*
+local_data/*

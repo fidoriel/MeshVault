@@ -13,4 +13,14 @@ npm run lint:fix # lint and fix frontend
 npm run format # format frontend
 ```
 
+precommit
+
+```bash
+cargo run --bin dsync
+typeshare ./backend --lang=typescript --output-file=frontend/bindings.ts
+cargo fmt
+cargo build --release
+npm run precommit
+```
+
 See [diesel getting started](https://diesel.rs/guides/getting-started) for the ORM.

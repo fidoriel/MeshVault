@@ -1,6 +1,9 @@
 use anyhow::Result;
+use diesel::SqliteConnection;
 use std::path::PathBuf;
 use tokio::fs;
+
+use crate::types::ModelPackV0_1;
 
 pub async fn find_modelpack_directories(start_path: PathBuf) -> Result<Vec<PathBuf>> {
     let mut modelpack_dirs = Vec::new();
@@ -32,4 +35,23 @@ pub async fn find_modelpack_directories(start_path: PathBuf) -> Result<Vec<PathB
     }
 
     Ok(modelpack_dirs)
+}
+
+pub async fn get_modpack_meta(
+    mut path: PathBuf,
+) -> Result<ModelPackV0_1, Box<dyn std::error::Error>> {
+    path.push("modelpack.json");
+
+    let data = fs::read_to_string(path).await?;
+    let model_pack: ModelPackV0_1 = serde_json::from_str(&data)?;
+
+    Ok(model_pack)
+}
+
+pub async fn refresh_library(connection: SqliteConnection) {
+    let data_dirs = find_modelpack_directories(PathBuf::from("3dassets"))
+        .await
+        .unwrap();
+
+    for dir in data_dirs {}
 }
