@@ -10,17 +10,15 @@ import { useState } from "react";
 import { NavLink } from "react-router-dom";
 import { Button } from "./components/ui/button";
 import { LoadingSpinner } from "./components/custom-ui/spinner";
+import { BACKEND_BASE_URL } from "./lib/api";
 
 const ACTIVE_NAV = "text-sm font-medium text-primary";
 const NON_ACTIVE_NAV = "text-sm font-medium text-muted-foreground transition-colors hover:text-primary";
-
-const BACKEND_BASE_URL = import.meta.env.VITE_BACKEND_URL || "";
 
 function Refresh() {
     const [loading, setLoading] = useState(false);
 
     async function handleRefresh() {
-        console.log("handleRefresh called");
         setLoading(true);
         try {
             const response = await fetch(BACKEND_BASE_URL + "/api/refresh", {
@@ -51,11 +49,8 @@ function Navbar() {
                     <NavLink to="/" className={({ isActive }) => (isActive ? ACTIVE_NAV : NON_ACTIVE_NAV)}>
                         Home
                     </NavLink>
-                    <NavLink to="/model" className={({ isActive }) => (isActive ? ACTIVE_NAV : NON_ACTIVE_NAV)}>
-                        Collections
-                    </NavLink>
                     <NavLink to="/collections" className={({ isActive }) => (isActive ? ACTIVE_NAV : NON_ACTIVE_NAV)}>
-                        Model
+                        Collections
                     </NavLink>
                     <NavLink to="/libraries" className={({ isActive }) => (isActive ? ACTIVE_NAV : NON_ACTIVE_NAV)}>
                         Libraries
@@ -86,7 +81,7 @@ function App() {
                     <div className="container mx-auto py-6">
                         <Routes>
                             <Route path="/" element={<Models />} />
-                            <Route path="/model" element={<Model />} />
+                            <Route path="/model/:slug" element={<Model />} />
                         </Routes>
                     </div>
                 </BrowserRouter>

@@ -1,9 +1,8 @@
-import React, { ReactNode } from "react";
+import React, { ReactNode, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Heart, Bookmark, ChevronDown, ChevronRight } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-
+import { useState } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
@@ -15,101 +14,10 @@ import {
     PaginationNext,
     PaginationPrevious,
 } from "./components/ui/pagination";
-
-interface Model {
-    title: string;
-    author: string;
-    image: string;
-    liked: boolean;
-    collected: boolean;
-}
-
-const sampleModels: Model[] = [
-    {
-        title: "Test1",
-        author: "Author1",
-        image: "https://media.printables.com/media/prints/1023387/images/7772651_8743bdfa-e7c7-48e3-a2dd-d66aa6c42a6c_b88c7fd6-e05f-425f-8348-8e54ec1db9d4/thumbs/inside/320x240/jpg/ducts.webp",
-        liked: true,
-        collected: true,
-    },
-    {
-        title: "Test1",
-        author: "Author1",
-        image: "https://media.printables.com/media/prints/1023387/images/7772651_8743bdfa-e7c7-48e3-a2dd-d66aa6c42a6c_b88c7fd6-e05f-425f-8348-8e54ec1db9d4/thumbs/inside/320x240/jpg/ducts.webp",
-        liked: true,
-        collected: true,
-    },
-    {
-        title: "Test1",
-        author: "Author1",
-        image: "https://media.printables.com/media/prints/1023387/images/7772651_8743bdfa-e7c7-48e3-a2dd-d66aa6c42a6c_b88c7fd6-e05f-425f-8348-8e54ec1db9d4/thumbs/inside/320x240/jpg/ducts.webp",
-        liked: true,
-        collected: true,
-    },
-    {
-        title: "Test1",
-        author: "Author1",
-        image: "https://media.printables.com/media/prints/1023387/images/7772651_8743bdfa-e7c7-48e3-a2dd-d66aa6c42a6c_b88c7fd6-e05f-425f-8348-8e54ec1db9d4/thumbs/inside/320x240/jpg/ducts.webp",
-        liked: true,
-        collected: true,
-    },
-    {
-        title: "Test1",
-        author: "Author1",
-        image: "https://media.printables.com/media/prints/1023387/images/7772651_8743bdfa-e7c7-48e3-a2dd-d66aa6c42a6c_b88c7fd6-e05f-425f-8348-8e54ec1db9d4/thumbs/inside/320x240/jpg/ducts.webp",
-        liked: true,
-        collected: true,
-    },
-    {
-        title: "Test1",
-        author: "Author1",
-        image: "https://media.printables.com/media/prints/1023387/images/7772651_8743bdfa-e7c7-48e3-a2dd-d66aa6c42a6c_b88c7fd6-e05f-425f-8348-8e54ec1db9d4/thumbs/inside/320x240/jpg/ducts.webp",
-        liked: true,
-        collected: true,
-    },
-    {
-        title: "Test1",
-        author: "Author1",
-        image: "https://media.printables.com/media/prints/1023387/images/7772651_8743bdfa-e7c7-48e3-a2dd-d66aa6c42a6c_b88c7fd6-e05f-425f-8348-8e54ec1db9d4/thumbs/inside/320x240/jpg/ducts.webp",
-        liked: true,
-        collected: true,
-    },
-    {
-        title: "Test1",
-        author: "Author1",
-        image: "https://media.printables.com/media/prints/1023387/images/7772651_8743bdfa-e7c7-48e3-a2dd-d66aa6c42a6c_b88c7fd6-e05f-425f-8348-8e54ec1db9d4/thumbs/inside/320x240/jpg/ducts.webp",
-        liked: true,
-        collected: true,
-    },
-    {
-        title: "Test1",
-        author: "Author1",
-        image: "https://media.printables.com/media/prints/1023387/images/7772651_8743bdfa-e7c7-48e3-a2dd-d66aa6c42a6c_b88c7fd6-e05f-425f-8348-8e54ec1db9d4/thumbs/inside/320x240/jpg/ducts.webp",
-        liked: true,
-        collected: true,
-    },
-    {
-        title: "Test1",
-        author: "Author1",
-        image: "https://media.printables.com/media/prints/1023387/images/7772651_8743bdfa-e7c7-48e3-a2dd-d66aa6c42a6c_b88c7fd6-e05f-425f-8348-8e54ec1db9d4/thumbs/inside/320x240/jpg/ducts.webp",
-        liked: true,
-        collected: true,
-    },
-    {
-        title: "Test1",
-        author: "Author1",
-        image: "https://media.printables.com/media/prints/1023387/images/7772651_8743bdfa-e7c7-48e3-a2dd-d66aa6c42a6c_b88c7fd6-e05f-425f-8348-8e54ec1db9d4/thumbs/inside/320x240/jpg/ducts.webp",
-        liked: true,
-        collected: true,
-    },
-    {
-        title: "Test1",
-        author: "Author1",
-        image: "https://media.printables.com/media/prints/1023387/images/7772651_8743bdfa-e7c7-48e3-a2dd-d66aa6c42a6c_b88c7fd6-e05f-425f-8348-8e54ec1db9d4/thumbs/inside/320x240/jpg/ducts.webp",
-        liked: true,
-        collected: true,
-    },
-];
+import { ModelResponse, ModelResponseList } from "./bindings";
+import { BACKEND_BASE_URL } from "./lib/api";
+import { useTheme } from "./components/theme-provider";
+import { Link } from "react-router-dom";
 
 function FilterSection({ title, children }: { title: string; children: ReactNode }) {
     const [isOpen, setIsOpen] = React.useState(true);
@@ -125,22 +33,31 @@ function FilterSection({ title, children }: { title: string; children: ReactNode
     );
 }
 
-function ModelCard({ model }: { model: Model }) {
+function ModelCard({ model }: { model: ModelResponse }) {
+    const image = model.images && model.images.length > 0 ? `${BACKEND_BASE_URL}${model.images[0]}` : null;
+    const { theme } = useTheme();
+    const fillColor = theme === "dark" ? "white" : "black";
+    const heart = true;
+    const detail_link = `/model/${model.name}`;
+
     return (
         <Card className="w-full bg-background border-border hover:shadow-lg transition-shadow duration-200">
             <CardContent className="p-0 relative">
-                <Badge className="absolute top-2 left-2 bg-red-500 text-white">Badge</Badge>
-                <img src={model.image} alt={model.title} className="w-full h-48 object-cover rounded-t-lg" />
+                {/* <Badge className="absolute top-2 left-2 bg-red-500 text-white">Badge</Badge> */}
+                <img src={image || ""} alt={model.title} className="w-full h-48 object-cover rounded-t-lg" />
             </CardContent>
             <div className="p-3">
                 <div className="flex items-center gap-2 mb-2">
                     <span className="text-sm text-muted-foreground">{model.author}</span>
                 </div>
-                <h3 className="text-sm text-foreground mb-3">{model.title}</h3>
+                <Link to={detail_link}>
+                    {" "}
+                    <h3 className="text-sm text-foreground mb-3">{model.title}</h3>{" "}
+                </Link>
                 <div className="flex items-center justify-between text-muted-foreground text-sm">
                     <div className="flex items-center gap-4">
                         <div className="flex items-center gap-1">
-                            {model.liked ? <Heart fill="black" className="w-4 h-4" /> : <Heart className="w-4 h-4" />}
+                            {heart ? <Heart fill={fillColor} className="w-4 h-4" /> : <Heart className="w-4 h-4" />}
                         </div>
                     </div>
                     <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
@@ -152,7 +69,31 @@ function ModelCard({ model }: { model: Model }) {
     );
 }
 
-const Models = () => {
+function Models() {
+    const [models, setModels] = useState<ModelResponseList>();
+
+    async function getModels() {
+        fetch(BACKEND_BASE_URL + "/api/models/list", {
+            method: "GET",
+        })
+            .then((response) => {
+                if (!response.ok) {
+                    throw new Error("Network response was not ok");
+                }
+                return response.json();
+            })
+            .then((response_models: ModelResponseList) => {
+                setModels(response_models);
+            })
+            .catch((error) => {
+                console.error("Fetch error:", error);
+            });
+    }
+
+    useEffect(() => {
+        getModels();
+    }, []);
+
     return (
         <div className="min-h-screen bg-background text-foreground">
             <div className="max-w-screen-2xl mx-auto p-3">
@@ -194,9 +135,7 @@ const Models = () => {
 
                     <div className="flex-1">
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                            {sampleModels.map((model, index) => (
-                                <ModelCard key={index} model={model} />
-                            ))}
+                            {models?.models.map((model, index) => <ModelCard key={index} model={model} />)}
                         </div>
                     </div>
                 </div>
@@ -221,6 +160,6 @@ const Models = () => {
             </div>
         </div>
     );
-};
+}
 
 export default Models;

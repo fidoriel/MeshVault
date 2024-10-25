@@ -6,8 +6,6 @@ use anyhow::{Error, Result};
 use chrono::NaiveDateTime;
 use diesel::prelude::*;
 use serde::{Deserialize, Serialize};
-use stl_thumb::config::{self};
-use str_slug::StrSlug;
 use typeshare::typeshare;
 
 fn comma_separated_to_pathbuf_vec(input: &str) -> Vec<PathBuf> {
@@ -49,7 +47,7 @@ pub struct Model3D {
 
 impl Model3D {
     pub fn relative_image_paths(&self) -> Vec<PathBuf> {
-        return comma_separated_to_pathbuf_vec(&self.images);
+        comma_separated_to_pathbuf_vec(&self.images)
     }
 }
 
@@ -69,7 +67,14 @@ impl ModelResponse {
     pub fn from_model_3d(model: &Model3D, config: &Config) -> Result<ModelResponse, Error> {
         let images: Vec<String> = comma_separated_to_pathbuf_vec(&model.images)
             .iter()
-            .map(|p| format!("{}/{}/{}", config.asset_prefix, model.path, p.to_string_lossy()))
+            .map(|p| {
+                format!(
+                    "{}/{}/{}",
+                    config.asset_prefix,
+                    model.path,
+                    p.to_string_lossy()
+                )
+            })
             .collect();
 
         Ok(ModelResponse {
@@ -95,7 +100,7 @@ impl ModelResponseList {
         let mut models: Vec<ModelResponse> = Vec::new();
 
         for m in model {
-            let model_response = ModelResponse::from_model_3d(&m, &config).unwrap();
+            let model_response = ModelResponse::from_model_3d(&m, config).unwrap();
             models.push(model_response);
         }
 
@@ -135,7 +140,7 @@ impl NewModel3D {
     }
 
     pub fn relative_image_paths(&self) -> Vec<PathBuf> {
-        return comma_separated_to_pathbuf_vec(&self.images);
+        comma_separated_to_pathbuf_vec(&self.images)
     }
 }
 
