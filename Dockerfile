@@ -29,7 +29,7 @@ RUN if [ "$TARGETPLATFORM" = "linux/arm64" ]; then \
 
 FROM --platform=$BUILDPLATFORM rust:1.82-bookworm AS rust-bindings-builder
 
-COPY Cargo.toml .
+COPY Cargo.toml typeshare.toml ./
 RUN cargo install typeshare-cli
 WORKDIR /code
 COPY backend/ backend/
