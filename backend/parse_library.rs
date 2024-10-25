@@ -1,7 +1,7 @@
 use crate::schema::models3d;
 use crate::schema::models3d::dsl::*;
 use crate::types::ModelPackV0_1;
-use crate::types::{File3D, Model3D, NewModel3D};
+use crate::types::{Model3D, NewModel3D};
 use crate::Config;
 use chrono::Local;
 use diesel::prelude::*;
@@ -10,8 +10,7 @@ use diesel_async::pooled_connection::bb8::Pool;
 use diesel_async::sync_connection_wrapper::SyncConnectionWrapper;
 use diesel_async::RunQueryDsl;
 use std::collections::HashSet;
-use std::path::{Path, PathBuf};
-use std::str::FromStr;
+use std::path::PathBuf;
 use tokio::fs;
 use tracing::{debug, info};
 use uuid::Uuid;
@@ -63,7 +62,7 @@ async fn get_all_image_files(
     image_dir: &PathBuf,
     base_dir: &PathBuf,
 ) -> anyhow::Result<Vec<PathBuf>> {
-    let supported_extensions = vec!["jpg", "jpeg", "png", "gif", "bmp", "tiff", "webp"];
+    let supported_extensions = ["jpg", "jpeg", "png", "gif", "bmp", "tiff", "webp"];
     let mut image_files = Vec::new();
 
     let mut dir_entries = fs::read_dir(&image_dir).await.unwrap();
@@ -200,7 +199,7 @@ pub async fn refresh_library(
             }
 
             let mut img_path = config.preview_cache_dir.clone();
-            img_path.push(format!("{}.png", Uuid::new_v4().to_string()));
+            img_path.push(format!("{}.png", Uuid::new_v4()));
 
             let mut render_config = stl_thumb::config::Config::default();
             render_config.stl_filename = file_path.to_str().unwrap().to_string();

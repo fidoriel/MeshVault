@@ -1,17 +1,15 @@
-use anyhow::Ok;
 use axum::Json;
 use axum::{
     extract::Path,
     extract::State,
     http::StatusCode,
-    response::{Html, IntoResponse},
+    response::IntoResponse,
     routing::{get, post},
     Router,
 };
+use diesel::prelude::*;
 use diesel::sqlite::SqliteConnection;
-use diesel::{connection, prelude::*};
-use diesel_async::async_connection_wrapper::AsyncConnectionWrapper;
-use diesel_async::pooled_connection::bb8::{Pool, PooledConnection};
+use diesel_async::pooled_connection::bb8::Pool;
 use diesel_async::pooled_connection::AsyncDieselConnectionManager;
 use diesel_async::pooled_connection::ManagerConfig;
 use diesel_async::sync_connection_wrapper::SyncConnectionWrapper;
@@ -19,7 +17,7 @@ use diesel_async::{AsyncConnection, RunQueryDsl};
 use diesel_migrations::MigrationHarness;
 use diesel_migrations::{embed_migrations, EmbeddedMigrations};
 use serde_derive::Deserialize;
-use std::{os::linux::raw::stat, path::PathBuf};
+use std::path::PathBuf;
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::services::{ServeDir, ServeFile};
 use tracing::{debug, info};
@@ -29,9 +27,8 @@ use types::{ModelResponse, ModelResponseList};
 mod parse_library;
 pub mod schema;
 pub mod types;
-use crate::schema::models3d;
 use crate::schema::models3d::dsl::*;
-use crate::types::{File3D, Model3D, NewModel3D};
+use crate::types::Model3D;
 
 #[derive(Clone, Debug, Deserialize)]
 struct Config {
@@ -93,16 +90,20 @@ struct AppState {
 }
 
 async fn healthz() -> impl IntoResponse {
-    (StatusCode::OK, format!("Done"))
+    (StatusCode::OK, "Done".to_string())
 }
 
-async fn get_model_by_slug(State(state): State<AppState>, Path(slug): Path<String>) -> impl IntoResponse {
+async fn get_model_by_slug(
+    State(state): State<AppState>,
+    Path(slug): Path<String>,
+) -> impl IntoResponse {
     let mut connection = state.pool.get().await.unwrap();
 
     let result = models3d
         .filter(name.eq(slug))
         .first::<Model3D>(&mut connection)
-        .await.unwrap();
+        .await
+        .unwrap();
     let response = ModelResponse::from_model_3d(&result, &state.config).unwrap();
     (StatusCode::OK, Json(response))
 }
@@ -112,7 +113,7 @@ async fn handle_refresh(State(state): State<AppState>) -> impl IntoResponse {
         .await
         .unwrap();
 
-    (StatusCode::OK, format!("Done"))
+    (StatusCode::OK, "Done".to_string())
 }
 
 async fn list_models(State(state): State<AppState>) -> impl IntoResponse {
@@ -175,7 +176,7 @@ async fn main() {
 
     let app_state = AppState {
         config: config.clone(),
-        pool: pool,
+        pool,
     };
 
     let cors = CorsLayer::new()
