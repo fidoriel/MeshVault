@@ -1,4 +1,4 @@
-CREATE TABLE models (
+CREATE TABLE models3d (
     id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     title VARCHAR(4096) NOT NULL,
     name VARCHAR(4096) NOT NULL UNIQUE, -- unique slug
@@ -9,7 +9,7 @@ CREATE TABLE models (
     date_added TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE files (
+CREATE TABLE files3d (
     id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     model_id INTEGER NOT NULL, -- Foreign key to models table
     path VARCHAR(4096) NOT NULL UNIQUE,

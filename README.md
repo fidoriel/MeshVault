@@ -16,7 +16,6 @@ npm run format # format frontend
 precommit
 
 ```bash
-cargo run --bin dsync
 typeshare ./backend --lang=typescript --output-file=frontend/bindings.ts
 cargo fmt
 cargo build --release

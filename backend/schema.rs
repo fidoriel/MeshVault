@@ -1,7 +1,7 @@
 // @generated automatically by Diesel CLI.
 
 diesel::table! {
-    files (id) {
+    files3d (id) {
         id -> Integer,
         model_id -> Integer,
         path -> Text,
@@ -12,7 +12,7 @@ diesel::table! {
 }
 
 diesel::table! {
-    models (id) {
+    models3d (id) {
         id -> Integer,
         title -> Text,
         name -> Text,
@@ -24,9 +24,6 @@ diesel::table! {
     }
 }
 
-diesel::joinable!(files -> models (model_id));
+diesel::joinable!(files3d -> models3d (model_id));
 
-diesel::allow_tables_to_appear_in_same_query!(
-    files,
-    models,
-);
+diesel::allow_tables_to_appear_in_same_query!(files3d, models3d,);

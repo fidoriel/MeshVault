@@ -1,14 +1,12 @@
 use axum::{
     http::StatusCode,
-    response::Html,
-    response::{IntoResponse, Response},
-    routing::get,
+    response::{Html, IntoResponse, Response},
+    routing::{get, post},
     Router,
 };
 use diesel::prelude::*;
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 use serde_derive::Deserialize;
-use std::io::{self, Write};
 use std::path::PathBuf;
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::services::{ServeDir, ServeFile};
@@ -17,6 +15,7 @@ use tracing_subscriber;
 use tracing_subscriber::EnvFilter;
 
 mod parse_library;
+pub mod schema;
 pub mod types;
 use parse_library::find_modelpack_directories;
 
@@ -117,7 +116,8 @@ async fn main() {
 
     let api = Router::new()
         .route("/lib/", get(paths))
-        .route("/", get(hello_world));
+        .route("/", get(hello_world))
+        .route("/refresh", post(hello_world));
 
     let serve_dir = ServeDir::new("dist");
 

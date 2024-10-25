@@ -9,18 +9,14 @@ default-run = "meshvault"
 name = "meshvault"
 path = "backend/main.rs"
 
-[[bin]]
-name = "dsync"
-path = "bin/dsync.rs"
-
 [dependencies]
 anyhow = "1.0.91"
 axum = "0.7.7"
+chrono = { version = "0.4.38", features = ["serde"] }
 diesel = { version = "2.2.0", features = ["sqlite", "returning_clauses_for_sqlite_3_35"] }
 diesel-async = "0.5.0"
 diesel_migrations = "2.2.0"
 dotenvy = "0.15.7"
-dsync = "0.1.0"
 envy = "0.4.2"
 serde = "1.0.213"
 serde_derive = "1.0.213"
