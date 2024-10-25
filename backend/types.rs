@@ -67,10 +67,9 @@ pub struct ModelResponse {
 
 impl ModelResponse {
     pub fn from_model_3d(model: &Model3D, config: &Config) -> Result<ModelResponse, Error> {
-        let prefixed_images: Vec<String> = model
-            .relative_image_paths()
+        let images: Vec<String> = comma_separated_to_pathbuf_vec(&model.images)
             .iter()
-            .map(|image| format!("{}{}", config.asset_prefix, image.display()))
+            .map(|p| format!("{}/{}/{}", config.asset_prefix, model.path, p.to_string_lossy()))
             .collect();
 
         Ok(ModelResponse {
@@ -80,7 +79,7 @@ impl ModelResponse {
             license: model.license.clone(),
             author: model.author.clone(),
             origin: model.origin.clone(),
-            images: prefixed_images,
+            images,
         })
     }
 }

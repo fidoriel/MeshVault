@@ -24,7 +24,7 @@ use tower_http::cors::{Any, CorsLayer};
 use tower_http::services::{ServeDir, ServeFile};
 use tracing::{debug, info};
 use tracing_subscriber::EnvFilter;
-use types::ModelResponseList;
+use types::{ModelResponse, ModelResponseList};
 
 mod parse_library;
 pub mod schema;
@@ -96,8 +96,15 @@ async fn healthz() -> impl IntoResponse {
     (StatusCode::OK, format!("Done"))
 }
 
-async fn get_model_by_slug(Path(slug): Path<String>) -> impl IntoResponse {
-    (StatusCode::OK, format!("Model slug: {}", slug))
+async fn get_model_by_slug(State(state): State<AppState>, Path(slug): Path<String>) -> impl IntoResponse {
+    let mut connection = state.pool.get().await.unwrap();
+
+    let result = models3d
+        .filter(name.eq(slug))
+        .first::<Model3D>(&mut connection)
+        .await.unwrap();
+    let response = ModelResponse::from_model_3d(&result, &state.config).unwrap();
+    (StatusCode::OK, Json(response))
 }
 
 async fn handle_refresh(State(state): State<AppState>) -> impl IntoResponse {

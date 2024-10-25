@@ -59,7 +59,10 @@ pub async fn get_modelpack_meta(pth: &PathBuf) -> anyhow::Result<ModelPackV0_1, 
     Ok(model_pack)
 }
 
-async fn get_all_image_files(image_dir: &PathBuf) -> anyhow::Result<Vec<PathBuf>> {
+async fn get_all_image_files(
+    image_dir: &PathBuf,
+    base_dir: &PathBuf,
+) -> anyhow::Result<Vec<PathBuf>> {
     let supported_extensions = vec!["jpg", "jpeg", "png", "gif", "bmp", "tiff", "webp"];
     let mut image_files = Vec::new();
 
@@ -77,7 +80,9 @@ async fn get_all_image_files(image_dir: &PathBuf) -> anyhow::Result<Vec<PathBuf>
                         .to_ascii_lowercase()
                         .as_str(),
                 ) {
-                    image_files.push(pth);
+                    if let Some(relative_path) = pathdiff::diff_paths(pth, base_dir) {
+                        image_files.push(relative_path);
+                    }
                 }
             }
         }
@@ -141,7 +146,7 @@ pub async fn refresh_library(
         let new_object = NewModel3D::from_model_pack_v0_1(
             &model_pack_meta,
             &relative_dir,
-            get_all_image_files(&image_dir).await.unwrap(),
+            get_all_image_files(&image_dir, &dir).await.unwrap(),
         )
         .unwrap();
 
