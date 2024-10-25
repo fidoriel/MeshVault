@@ -21,6 +21,7 @@ diesel::table! {
         path -> Text,
         origin -> Nullable<Text>,
         date_added -> Nullable<Timestamp>,
+        images -> Text,
     }
 }
 

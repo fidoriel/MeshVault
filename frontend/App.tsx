@@ -5,13 +5,43 @@ import { ThemeProvider } from "./components/theme-provider";
 import Models from "./Models";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { RefreshCcw, Upload } from "lucide-react";
+import React, { useState } from 'react';
 
 import { NavLink } from "react-router-dom";
 import { Button } from "./components/ui/button";
+import { LoadingSpinner } from "./components/custom-ui/spinner";
 
 const ACTIVE_NAV = "text-sm font-medium text-primary";
 const NON_ACTIVE_NAV =
   "text-sm font-medium text-muted-foreground transition-colors hover:text-primary";
+
+const BACKEND_BASE_URL = import.meta.env.VITE_BACKEND_URL || "";
+
+function Refresh() {
+    const [loading, setLoading] = useState(false);
+  
+    async function handleRefresh() {
+      console.log('handleRefresh called');
+      setLoading(true);
+      try {
+        const response = await fetch( BACKEND_BASE_URL + '/api/refresh', { method: 'POST' });
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
+      } catch (error) {
+        console.error('Fetch error:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+  
+    return (
+      <Button variant="outline" size="icon" onClick={handleRefresh} disabled={loading}>
+        {loading ? <LoadingSpinner size={1} /> : <RefreshCcw />}
+      </Button>
+    );
+  };
+  
 
 function Navbar() {
   return (
@@ -63,11 +93,9 @@ function Navbar() {
           <Search />
           <ModeToggle />
           <Button variant="outline" size="icon">
-            <RefreshCcw />
-          </Button>
-          <Button variant="outline" size="icon">
             <Upload />
-          </Button>{" "}
+          </Button>
+          <Refresh />
         </div>
       </div>
     </div>
