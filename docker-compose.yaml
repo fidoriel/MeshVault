@@ -1,9 +1,9 @@
 services:
-  meshvault:
-    build: .
-    user: 1000:1000
-    volumes:
-      - "./3dassets:/meshvault/3dassets"
-      - "./docker_data:/meshvault/data"
-    ports:
-      - "127.0.0.1:3000:3000"
+    meshvault:
+        build: .
+        user: 1000:1000
+        volumes:
+            - "./3dassets:/meshvault/3dassets"
+            - "./docker_data:/meshvault/data"
+        ports:
+            - "127.0.0.1:3000:3000"
