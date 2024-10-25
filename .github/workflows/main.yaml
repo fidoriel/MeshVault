@@ -36,7 +36,7 @@ jobs:
 
             - name: Install type generator
               if: steps.cache-typeshare-cli.outputs.cache-hit != 'true'
-              run: cargo install typeshare-cli
+              run: cargo install typeshare-cli --force
 
             - name: Generate Bindings
               run: typeshare ./backend --lang=typescript --output-file=frontend/bindings.ts
