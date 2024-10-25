@@ -2,85 +2,69 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Download, Heart, MoreVertical, RefreshCcw, Bookmark } from "lucide-react";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
+import { useParams } from "react-router-dom";
+import { ModelResponse } from "./bindings";
+import { BACKEND_BASE_URL } from "./lib/api";
 
-function DropdownMenu() {
-    const [isOpen, setIsOpen] = useState(false);
-    const dropdownRef = useRef<HTMLDivElement>(null);
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
-    const toggleDropdown = () => {
-        setIsOpen(!isOpen);
-    };
-
-    const handleClickOutside = (event: MouseEvent) => {
-        if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-            setIsOpen(false);
-        }
-    };
-
-    useEffect(() => {
-        document.addEventListener("mousedown", handleClickOutside);
-        return () => {
-            document.removeEventListener("mousedown", handleClickOutside);
-        };
-    }, []);
-
+function OptionsDropdownMenu() {
     return (
-        <div className="relative inline-block text-left" ref={dropdownRef}>
-            <Button variant="ghost" size="icon" onClick={toggleDropdown}>
-                <MoreVertical className="h-5 w-5" />
-            </Button>
-            {isOpen && (
-                <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-md shadow-lg">
-                    <div className="py-1">
-                        <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                            Edit
-                        </a>
-                        <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                            Delete
-                        </a>
-                        <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                            Move to Library
-                        </a>
-                    </div>
-                </div>
-            )}
-        </div>
+        <DropdownMenu>
+            <DropdownMenuTrigger>
+                <Button size="icon" variant="outline">
+                    <MoreVertical className="h-5 w-5" />
+                </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+                <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem>Profile</DropdownMenuItem>
+                <DropdownMenuItem>Billing</DropdownMenuItem>
+                <DropdownMenuItem>Team</DropdownMenuItem>
+                <DropdownMenuItem>Subscription</DropdownMenuItem>
+            </DropdownMenuContent>
+        </DropdownMenu>
     );
 }
 
-const secondaryImages = [
-    "https://media.printables.com/media/prints/1023387/images/7772651_8743bdfa-e7c7-48e3-a2dd-d66aa6c42a6c_b88c7fd6-e05f-425f-8348-8e54ec1db9d4/thumbs/inside/320x240/jpg/ducts.webp",
-    "https://media.printables.com/media/prints/1023387/images/7772651_8743bdfa-e7c7-48e3-a2dd-d66aa6c42a6c_b88c7fd6-e05f-425f-8348-8e54ec1db9d4/thumbs/inside/320x240/jpg/ducts.webp",
-    "https://media.printables.com/media/prints/1023387/images/7772651_8743bdfa-e7c7-48e3-a2dd-d66aa6c42a6c_b88c7fd6-e05f-425f-8348-8e54ec1db9d4/thumbs/inside/320x240/jpg/ducts.webp",
-    "https://media.printables.com/media/prints/1023387/images/7772651_8743bdfa-e7c7-48e3-a2dd-d66aa6c42a6c_b88c7fd6-e05f-425f-8348-8e54ec1db9d4/thumbs/inside/320x240/jpg/ducts.webp,",
-];
-
-function Image() {
-    const [selectedImage, setSelectedImage] = useState(secondaryImages[0]);
+function Image({ model }: { model: ModelResponse }) {
+    const [selectedImage, setSelectedImage] = useState(model.images[0] || undefined);
 
     return (
-        <div className="w-full max-w-3xl">
+        <div className="w-full max-w-4xl">
             <Card className="mb-4">
                 <CardContent className="p-0">
                     <img
-                        src={selectedImage}
+                        src={`${BACKEND_BASE_URL}${selectedImage}`}
                         alt="Model Preview"
-                        className="w-full h-[600px] object-contain bg-gray-100 rounded-lg"
+                        className="w-full h-full object-cover rounded-lg"
                     />
                 </CardContent>
             </Card>
 
             <div className="flex gap-1 mb-1 overflow-x-auto">
-                {secondaryImages.map((img, index) => (
+                {model.images.map((img, index) => (
                     <div className="p-1">
                         <button
                             key={index}
                             onClick={() => setSelectedImage(img)}
-                            className="flex-shrink-0 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-lg"
+                            className={
+                                img == selectedImage
+                                    ? "flex-shrink-0 outline-none ring-2 ring-blue-500 rounded-lg"
+                                    : "flex-shrink-0 rounded-lg"
+                            }
                         >
                             <img
-                                src={img}
+                                src={`${BACKEND_BASE_URL}${img}`}
                                 alt={`Preview ${index + 1}`}
                                 className="w-16 h-16 object-cover rounded-lg hover:opacity-80 transition-opacity"
                             />
@@ -92,22 +76,19 @@ function Image() {
     );
 }
 
-function InfoCard() {
+function InfoCard({ model }: { model: ModelResponse }) {
     return (
         <div className="w-full max-w-lg px-1">
             <div className="flex justify-between items-start mb-6">
                 <div className="space-y-2">
-                    <h1 className="text-2xl font-bold">Model</h1>
+                    <h1 className="text-2xl font-bold">{model.title}</h1>
                 </div>
-                <DropdownMenu />
+                <OptionsDropdownMenu />
             </div>
 
             <div className="mb-6">
                 <div className="space-y-4">
-                    <div>
-                        <div className="font-medium">Creator Name</div>
-                        <div className="text-sm text-gray-400">@UserName</div>
-                    </div>
+                    <div className="font-medium text-gray-400">{model.author}</div>
                     <div className="flex gap-2">
                         <Button variant="outline" size="sm" className="h-8">
                             Printables
@@ -141,7 +122,7 @@ function InfoCard() {
             </div>
             <div className="space-y-2">
                 <div>
-                    <span className="font-bold">License:</span> MIT
+                    <span className="font-bold">License:</span> {model.license}
                 </div>
                 <div>
                     <span className="font-bold">Price:</span> $49.99
@@ -160,22 +141,13 @@ function InfoCard() {
     );
 }
 
-function ModelTop() {
-    return (
-        <div className="flex flex-col lg:flex-row gap-6 max-w-6xl mx-auto p-6">
-            <Image />
-            <InfoCard />
-        </div>
-    );
-}
-
-function Description() {
+function Description({ model }: { model: ModelResponse }) {
     return (
         <div className="max-w-6xl mx-auto p-6">
             <div className="prose max-w-none">
                 <h2 className="text-xl font-bold mb-4">Description</h2>
                 <p className="text-gray-700 mb-4">
-                    This is a detailed description of the 3D model. It includes information about its features, use
+                    This is a detailed description of {model.title}. It includes information about its features, use
                     cases, and any special instructions for printing or assembly. The description helps users understand
                     the model's purpose and specifications.
                 </p>
@@ -198,7 +170,7 @@ function Description() {
     );
 }
 
-function FileList() {
+function FileList({ model }: { model: ModelResponse }) {
     const files = [
         {
             name: "test1.step",
@@ -226,7 +198,7 @@ function FileList() {
     return (
         <div className="max-w-6xl mx-auto p-6">
             <div className="mb-6 flex items-center justify-between">
-                <h2 className="text-xl font-bold">Modelldateien</h2>
+                <h2 className="text-xl font-bold">Modelldateien {model.title}</h2>
                 <Button variant="outline" className="flex items-center gap-2">
                     <Download size={16} />
                     Alle Dateien (483 KB)
@@ -262,12 +234,50 @@ function FileList() {
 }
 
 function Model() {
+    const { slug } = useParams();
+
+    const [model, setModel] = useState<ModelResponse>();
+
+    async function getModels() {
+        fetch(BACKEND_BASE_URL + `/api/model/${slug}`, {
+            method: "GET",
+        })
+            .then((response) => {
+                if (!response.ok) {
+                    throw new Error("Network response was not ok");
+                }
+                return response.json();
+            })
+            .then((response_models: ModelResponse) => {
+                setModel(response_models);
+            })
+            .catch((error) => {
+                console.error("Fetch error:", error);
+            });
+    }
+
+    useEffect(() => {
+        getModels();
+    }, []);
+
     return (
-        <div className="min-h-screen">
-            <ModelTop />
-            <Description />
-            <FileList />
-        </div>
+        <>
+            {" "}
+            {model && (
+                <div className="min-h-screen">
+                    <div className="flex flex-col lg:flex-row gap-6 max-w-8xl mx-auto p-6">
+                        <div className="w-full lg:w-3/5">
+                            <Image model={model} />
+                        </div>
+                        <div className="w-full lg:w-2/5">
+                            <InfoCard model={model} />
+                        </div>
+                    </div>
+                    <Description model={model} />
+                    <FileList model={model} />
+                </div>
+            )}
+        </>
     );
 }
 

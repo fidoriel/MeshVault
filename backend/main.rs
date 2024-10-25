@@ -186,7 +186,7 @@ async fn main() {
     let api = Router::new()
         .route("/refresh", post(handle_refresh))
         .route("/models/list", get(list_models))
-        .route("/models/:slug", get(get_model_by_slug))
+        .route("/model/:slug", get(get_model_by_slug))
         .with_state(app_state);
 
     let serve_dir = ServeDir::new("dist");
