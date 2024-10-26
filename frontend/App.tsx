@@ -11,6 +11,7 @@ import { NavLink } from "react-router-dom";
 import { Button } from "./components/ui/button";
 import { LoadingSpinner } from "./components/custom-ui/spinner";
 import { BACKEND_BASE_URL } from "./lib/api";
+import AboutModelPack from "./ModelPack";
 
 const ACTIVE_NAV = "text-sm font-medium text-primary";
 const NON_ACTIVE_NAV = "text-sm font-medium text-muted-foreground transition-colors hover:text-primary";
@@ -58,6 +59,9 @@ function Navbar() {
                     <NavLink to="/settings" className={({ isActive }) => (isActive ? ACTIVE_NAV : NON_ACTIVE_NAV)}>
                         Settings
                     </NavLink>
+                    <NavLink to="/modelpack" className={({ isActive }) => (isActive ? ACTIVE_NAV : NON_ACTIVE_NAV)}>
+                        About ModelPack
+                    </NavLink>
                 </nav>
                 <div className="ml-auto flex items-center space-x-4">
                     <Search />
@@ -82,6 +86,7 @@ function App() {
                         <Routes>
                             <Route path="/" element={<Models />} />
                             <Route path="/model/:slug" element={<Model />} />
+                            <Route path="/modelpack" element={<AboutModelPack />} />
                         </Routes>
                     </div>
                 </BrowserRouter>
