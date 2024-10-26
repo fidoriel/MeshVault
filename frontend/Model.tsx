@@ -24,12 +24,12 @@ function OptionsDropdownMenu() {
                 <MoreVertical className="h-5 w-5" />
             </DropdownMenuTrigger>
             <DropdownMenuContent>
-                <DropdownMenuLabel>My Account</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem>Profile</DropdownMenuItem>
-                <DropdownMenuItem>Billing</DropdownMenuItem>
-                <DropdownMenuItem>Team</DropdownMenuItem>
-                <DropdownMenuItem>Subscription</DropdownMenuItem>
+                <DropdownMenuLabel>Model Options</DropdownMenuLabel>
+                <DropdownMenuSeparator></DropdownMenuSeparator>
+                <DropdownMenuItem>Edit</DropdownMenuItem>
+                <DropdownMenuItem>Delete</DropdownMenuItem>
+                <DropdownMenuItem>Compress</DropdownMenuItem>
+                <DropdownMenuItem>Merge</DropdownMenuItem>
             </DropdownMenuContent>
         </DropdownMenu>
     );
@@ -131,8 +131,8 @@ function InfoCard({ model }: { model: DetailedModelResponse }) {
                 </div>
                 <div>
                     <span className="font-bold">Origin URL:</span>
-                    <a href="https://example.com" className="text-blue-500 hover:underline ml-1">
-                        https://example.com
+                    <a href={model.origin} className="text-blue-500 hover:underline ml-1">
+                        {model.origin}
                     </a>
                 </div>
                 <div>
@@ -148,25 +148,7 @@ function Description({ model }: { model: DetailedModelResponse }) {
         <div className="max-w-6xl mx-auto p-6">
             <div className="prose max-w-none">
                 <h2 className="text-xl font-bold mb-4">Description</h2>
-                <p className="text-gray-700 mb-4">
-                    This is a detailed description of {model.title}. It includes information about its features, use
-                    cases, and any special instructions for printing or assembly. The description helps users understand
-                    the model's purpose and specifications.
-                </p>
-                <h3 className="text-lg font-semibold mb-2">Features:</h3>
-                <ul className="list-disc pl-6 mb-4">
-                    <li>High-quality mesh with optimized topology</li>
-                    <li>Print-ready with pre-supported options</li>
-                    <li>Multiple variants included</li>
-                    <li>Detailed assembly instructions</li>
-                </ul>
-                <h3 className="text-lg font-semibold mb-2">Printing Specifications:</h3>
-                <ul className="list-disc pl-6">
-                    <li>Recommended layer height: 0.2mm</li>
-                    <li>Infill: 15-20%</li>
-                    <li>Supports: Required</li>
-                    <li>Estimated print time: 8 hours</li>
-                </ul>
+                <p className="mb-4">{model.title}</p>
             </div>
         </div>
     );

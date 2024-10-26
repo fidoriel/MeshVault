@@ -3,15 +3,16 @@ import Model from "./Model";
 import { Search } from "./components/search";
 import { ThemeProvider } from "./components/theme-provider";
 import Models from "./Models";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Link } from "react-router-dom";
 import { RefreshCcw, Upload } from "lucide-react";
 import { useState } from "react";
 
 import { NavLink } from "react-router-dom";
 import { Button } from "./components/ui/button";
-import { LoadingSpinner } from "./components/custom-ui/spinner";
 import { BACKEND_BASE_URL } from "./lib/api";
 import AboutModelPack from "./ModelPack";
+import UploadModel from "./UploadModel";
+import { Toaster } from "./components/ui/toaster";
 
 const ACTIVE_NAV = "text-sm font-medium text-primary";
 const NON_ACTIVE_NAV = "text-sm font-medium text-muted-foreground transition-colors hover:text-primary";
@@ -37,7 +38,7 @@ function Refresh() {
 
     return (
         <Button variant="outline" size="icon" onClick={handleRefresh} disabled={loading}>
-            {loading ? <LoadingSpinner size={1} /> : <RefreshCcw />}
+            <RefreshCcw className={loading ? "spin-left" : ""} />
         </Button>
     );
 }
@@ -66,9 +67,11 @@ function Navbar() {
                 <div className="ml-auto flex items-center space-x-4">
                     <Search />
                     <ModeToggle />
-                    <Button variant="outline" size="icon">
-                        <Upload />
-                    </Button>
+                    <Link to="/upload">
+                        <Button variant="outline" size="icon">
+                            <Upload />
+                        </Button>
+                    </Link>
                     <Refresh />
                 </div>
             </div>
@@ -85,11 +88,13 @@ function App() {
                     <div className="container mx-auto py-6">
                         <Routes>
                             <Route path="/" element={<Models />} />
+                            <Route path="/upload" element={<UploadModel />} />
                             <Route path="/model/:slug" element={<Model />} />
                             <Route path="/modelpack" element={<AboutModelPack />} />
                         </Routes>
                     </div>
                 </BrowserRouter>
+                <Toaster />
             </ThemeProvider>
         </>
     );
