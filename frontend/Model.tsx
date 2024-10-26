@@ -4,8 +4,10 @@ import { Download, Heart, MoreVertical, RefreshCcw, Bookmark } from "lucide-reac
 
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
-import { ModelResponse } from "./bindings";
+import { DetailedModelResponse } from "./bindings";
 import { BACKEND_BASE_URL } from "./lib/api";
+import { saveAs } from 'file-saver';
+
 
 import {
     DropdownMenu,
@@ -16,13 +18,16 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
+function handleDownload(filePath: string) {
+    const url = BACKEND_BASE_URL + filePath;
+    saveAs(url, filePath.split('/').pop());
+}
+
 function OptionsDropdownMenu() {
     return (
         <DropdownMenu>
             <DropdownMenuTrigger>
-                <Button size="icon" variant="outline">
-                    <MoreVertical className="h-5 w-5" />
-                </Button>
+                <MoreVertical className="h-5 w-5" />
             </DropdownMenuTrigger>
             <DropdownMenuContent>
                 <DropdownMenuLabel>My Account</DropdownMenuLabel>
@@ -36,7 +41,7 @@ function OptionsDropdownMenu() {
     );
 }
 
-function Image({ model }: { model: ModelResponse }) {
+function ImageGallery({ model }: { model: DetailedModelResponse }) {
     const [selectedImage, setSelectedImage] = useState(model.images[0] || undefined);
 
     return (
@@ -53,10 +58,8 @@ function Image({ model }: { model: ModelResponse }) {
 
             <div className="flex gap-1 mb-1 overflow-x-auto">
                 {model.images.map((img, index) => (
-                    <div className="p-1">
+                    <div key={index} className="p-1">
                         <button
-                            key={index}
-                            onClick={() => setSelectedImage(img)}
                             className={
                                 img == selectedImage
                                     ? "flex-shrink-0 outline-none ring-2 ring-blue-500 rounded-lg"
@@ -64,6 +67,7 @@ function Image({ model }: { model: ModelResponse }) {
                             }
                         >
                             <img
+                                onClick={() => setSelectedImage(img)}
                                 src={`${BACKEND_BASE_URL}${img}`}
                                 alt={`Preview ${index + 1}`}
                                 className="w-16 h-16 object-cover rounded-lg hover:opacity-80 transition-opacity"
@@ -76,7 +80,7 @@ function Image({ model }: { model: ModelResponse }) {
     );
 }
 
-function InfoCard({ model }: { model: ModelResponse }) {
+function InfoCard({ model }: { model: DetailedModelResponse }) {
     return (
         <div className="w-full max-w-lg px-1">
             <div className="flex justify-between items-start mb-6">
@@ -141,7 +145,7 @@ function InfoCard({ model }: { model: ModelResponse }) {
     );
 }
 
-function Description({ model }: { model: ModelResponse }) {
+function Description({ model }: { model: DetailedModelResponse }) {
     return (
         <div className="max-w-6xl mx-auto p-6">
             <div className="prose max-w-none">
@@ -170,30 +174,8 @@ function Description({ model }: { model: ModelResponse }) {
     );
 }
 
-function FileList({ model }: { model: ModelResponse }) {
-    const files = [
-        {
-            name: "test1.step",
-            size: "300 Mb",
-            date: "10. Februar 2022",
-            thumbnail: "🟧", // Using an emoji as placeholder
-            type: "Sourcefile",
-        },
-        {
-            name: "test2.stl",
-            size: "41 kB",
-            date: "10. Februar 2022",
-            thumbnail: "🟧",
-            type: "Mesh",
-        },
-        {
-            name: "test3.stl",
-            size: "122 kB",
-            date: "10. Februar 2022",
-            thumbnail: "🟧",
-            type: "Mesh",
-        },
-    ];
+function FileList({ model }: { model: DetailedModelResponse }) {
+    const files = model.files;
 
     return (
         <div className="max-w-6xl mx-auto p-6">
@@ -210,17 +192,17 @@ function FileList({ model }: { model: ModelResponse }) {
                     <Card key={index} className="p-4">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-4">
-                                <div className="text-4xl">{file.thumbnail}</div>
+                                <img src={BACKEND_BASE_URL + file.preview_image} className="h-24" />
                                 <div>
-                                    <h3 className="font-medium">{file.name}</h3>
+                                    <h3 className="font-medium">{file.file_path}</h3>
                                     <p className="text-sm text-gray-500">
-                                        {file.size} | {file.date} | {file.type}
+                                        {"2 Mb"} | {String(file.date_added) || ""} | {file.file_hash || ""}
                                     </p>
                                 </div>
                             </div>
 
                             <div className="flex gap-2">
-                                <Button variant="outline" className="flex items-center gap-2">
+                                <Button variant="outline" className="flex items-center gap-2" onClick={() => {handleDownload(file.file_path)}}>
                                     <Download size={16} />
                                     Download
                                 </Button>
@@ -236,7 +218,7 @@ function FileList({ model }: { model: ModelResponse }) {
 function Model() {
     const { slug } = useParams();
 
-    const [model, setModel] = useState<ModelResponse>();
+    const [model, setModel] = useState<DetailedModelResponse>();
 
     async function getModels() {
         fetch(BACKEND_BASE_URL + `/api/model/${slug}`, {
@@ -248,7 +230,7 @@ function Model() {
                 }
                 return response.json();
             })
-            .then((response_models: ModelResponse) => {
+            .then((response_models: DetailedModelResponse) => {
                 setModel(response_models);
             })
             .catch((error) => {
@@ -262,12 +244,11 @@ function Model() {
 
     return (
         <>
-            {" "}
             {model && (
                 <div className="min-h-screen">
                     <div className="flex flex-col lg:flex-row gap-6 max-w-8xl mx-auto p-6">
                         <div className="w-full lg:w-3/5">
-                            <Image model={model} />
+                            <ImageGallery model={model} />
                         </div>
                         <div className="w-full lg:w-2/5">
                             <InfoCard model={model} />

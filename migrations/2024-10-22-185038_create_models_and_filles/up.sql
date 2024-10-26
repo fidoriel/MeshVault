@@ -4,7 +4,7 @@ CREATE TABLE models3d (
     name VARCHAR(4096) NOT NULL UNIQUE, -- unique slug
     license VARCHAR(256),
     author VARCHAR(256),
-    path VARCHAR(4096) NOT NULL UNIQUE,
+    folder_path VARCHAR(4096) NOT NULL UNIQUE,
     origin VARCHAR(2048),
     date_added TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     images VARCHAR
@@ -13,7 +13,7 @@ CREATE TABLE models3d (
 CREATE TABLE files3d (
     id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     model_id INTEGER NOT NULL, -- Foreign key to models table
-    path VARCHAR(4096) NOT NULL UNIQUE,
+    file_path VARCHAR(4096) NOT NULL UNIQUE,
     preview_image VARCHAR(4096) UNIQUE,
     date_added TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     file_hash CHAR(135), -- sha256 including prefix

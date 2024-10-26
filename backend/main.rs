@@ -16,22 +16,22 @@ use diesel_async::sync_connection_wrapper::SyncConnectionWrapper;
 use diesel_async::{AsyncConnection, RunQueryDsl};
 use diesel_migrations::MigrationHarness;
 use diesel_migrations::{embed_migrations, EmbeddedMigrations};
-use serde_derive::Deserialize;
+use serde_derive::{Deserialize, Serialize};
 use std::path::PathBuf;
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::services::{ServeDir, ServeFile};
-use tracing::{debug, info};
+use tracing::{debug, error, info};
 use tracing_subscriber::EnvFilter;
-use types::{ModelResponse, ModelResponseList};
+use types::{DetailedModelResponse, ModelResponseList};
 
-mod parse_library;
+pub mod parse_library;
 pub mod schema;
 pub mod types;
 use crate::schema::models3d::dsl::*;
 use crate::types::Model3D;
 
-#[derive(Clone, Debug, Deserialize)]
-struct Config {
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct Config {
     libraries_path: PathBuf,
     #[serde(default = "default_log_level")]
     log_level: String,
@@ -42,11 +42,13 @@ struct Config {
     port: String,
     #[serde(default = "default_asset_prefix")]
     asset_prefix: String,
-    #[serde(skip)]
+    #[serde(default = "default_cache_prefix")]
+    cache_prefix: String,
+    #[serde(skip_deserializing)]
     database_url: PathBuf,
-    #[serde(skip)]
+    #[serde(skip_deserializing)]
     preview_cache_dir: PathBuf,
-    #[serde(skip)]
+    #[serde(skip_deserializing)]
     address: String,
 }
 
@@ -64,6 +66,10 @@ fn default_log_level() -> String {
 
 fn default_asset_prefix() -> String {
     "/3d".to_string()
+}
+
+fn default_cache_prefix() -> String {
+    "/cache".to_string()
 }
 
 impl Config {
@@ -104,7 +110,9 @@ async fn get_model_by_slug(
         .first::<Model3D>(&mut connection)
         .await
         .unwrap();
-    let response = ModelResponse::from_model_3d(&result, &state.config).unwrap();
+    let response = DetailedModelResponse::from_model_3d(&result, &state.config, &mut connection)
+        .await
+        .unwrap();
     (StatusCode::OK, Json(response))
 }
 
@@ -168,7 +176,10 @@ async fn main() {
         .with_env_filter(EnvFilter::new(config.log_level.clone()))
         .init();
 
-    debug!("Debug logs enabled");
+    match serde_json::to_string(&config) {
+        Ok(json) => debug!("Config: {}", json),
+        Err(e) => error!("Failed to serialize config: {}", e),
+    }
 
     migrate(&config);
 
@@ -198,6 +209,10 @@ async fn main() {
         .nest_service(
             &config.asset_prefix.to_string(),
             ServeDir::new(config.libraries_path),
+        )
+        .nest_service(
+            &config.cache_prefix.to_string(),
+            ServeDir::new(config.preview_cache_dir),
         )
         .route_service("/", ServeFile::new("dist/index.html"))
         .fallback_service(serve_dir)
