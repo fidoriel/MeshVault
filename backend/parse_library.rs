@@ -1,7 +1,6 @@
-use crate::schema::models3d;
-use crate::schema::models3d::dsl::*;
+use crate::schema::{files3d, models3d};
 use crate::types::ModelPackV0_1;
-use crate::types::{Model3D, NewModel3D};
+use crate::types::{File3D, Model3D, NewFile3D, NewModel3D};
 use crate::Config;
 use chrono::Local;
 use diesel::prelude::*;
@@ -10,7 +9,7 @@ use diesel_async::pooled_connection::bb8::Pool;
 use diesel_async::sync_connection_wrapper::SyncConnectionWrapper;
 use diesel_async::RunQueryDsl;
 use std::collections::HashSet;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use tokio::fs;
 use tracing::{debug, info};
 use uuid::Uuid;
@@ -30,7 +29,10 @@ pub async fn find_modelpack_directories(start_path: PathBuf) -> anyhow::Result<V
 
         while let Ok(Some(entry)) = dir_entries.next_entry().await {
             let pth = entry.path();
-            if pth.file_name() == Some("modelpack.json".as_ref()) {
+            if pth.file_name() == Some("modelpack.json".as_ref()) && {
+                let parent_dir = pth.parent().unwrap_or_else(|| Path::new(""));
+                parent_dir.join("files").is_dir()
+            } {
                 has_modelpack = true;
             } else if pth.is_dir() {
                 subdirs.push(pth);
@@ -110,18 +112,21 @@ pub async fn refresh_library(
         .filter_map(|dir| pathdiff::diff_paths(dir, &config.libraries_path))
         .collect();
 
-    let possibly_old_models = models3d.load::<Model3D>(&mut connection).await.unwrap();
+    let possibly_old_models = models3d::dsl::models3d
+        .load::<Model3D>(&mut connection)
+        .await
+        .unwrap();
 
     for model in possibly_old_models {
-        if !dirs_set.contains(&PathBuf::from(&model.path)) {
-            diesel::delete(models3d.filter(id.eq(model.id)))
+        if !dirs_set.contains(&PathBuf::from(&model.folder_path)) {
+            diesel::delete(models3d::dsl::models3d.filter(models3d::dsl::id.eq(model.id)))
                 .execute(&mut connection)
                 .await
                 .unwrap();
 
             debug!(
                 "Deleted model from database: {:?} (id: {})",
-                model.path, model.id
+                model.folder_path, model.id
             );
         }
     }
@@ -133,8 +138,8 @@ pub async fn refresh_library(
 
         let relative_dir = pathdiff::diff_paths(&dir, &config.libraries_path).unwrap();
 
-        let result: Option<Model3D> = models3d
-            .filter(path.eq(relative_dir.to_str().unwrap()))
+        let result: Option<Model3D> = models3d::dsl::models3d
+            .filter(models3d::dsl::folder_path.eq(relative_dir.to_str().unwrap()))
             .first::<Model3D>(&mut connection)
             .await
             .ok();
@@ -150,62 +155,160 @@ pub async fn refresh_library(
         .unwrap();
 
         if let Some(existing_model) = result {
-            diesel::update(models3d.find(existing_model.id))
+            diesel::update(models3d::dsl::models3d.find(existing_model.id))
                 .set((
-                    title.eq(&new_object.title),
-                    name.eq(&new_object.name),
-                    license.eq(&new_object.license),
-                    author.eq(&new_object.author),
-                    origin.eq(&new_object.origin),
-                    images.eq(new_object.images),
+                    models3d::dsl::title.eq(&new_object.title),
+                    models3d::dsl::name.eq(&new_object.name),
+                    models3d::dsl::license.eq(&new_object.license),
+                    models3d::dsl::author.eq(&new_object.author),
+                    models3d::dsl::origin.eq(&new_object.origin),
+                    models3d::dsl::images.eq(new_object.images),
                 ))
                 .execute(&mut connection)
                 .await
                 .unwrap();
-            debug!("Updated {:?}", new_object.path)
+            debug!("Updated {:?}", new_object.folder_path)
         } else {
             diesel::insert_into(models3d::table)
                 .values(&new_object)
                 .execute(&mut connection)
                 .await
                 .unwrap();
-            debug!("Created {:?}", new_object.path)
+            debug!("Created Model {:?}", new_object.folder_path)
         }
     }
 
-    // generate previews
+    // generate file3d entrys
     fs::create_dir_all(config.preview_cache_dir.clone()).await?;
-    let models = models3d.load::<Model3D>(&mut connection).await.unwrap();
 
+    let files = files3d::dsl::files3d
+        .load::<File3D>(&mut connection)
+        .await
+        .unwrap();
+
+    // delete file references deleted in fs
+    for file in files {
+        let file_pth = file.get_file_path(&mut connection, &config).await.clone();
+
+        if fs::metadata(&file_pth).await.is_ok() {
+            let current_sha = sha256::try_async_digest(file_pth.clone())
+                .await
+                .unwrap()
+                .to_string();
+            let saved_sha = file.file_hash.unwrap_or("".to_string());
+            if current_sha == saved_sha {
+                continue;
+            }
+        }
+        diesel::delete(files3d::dsl::files3d.filter(files3d::dsl::id.eq(file.id)))
+            .execute(&mut connection)
+            .await
+            .unwrap();
+        debug!("Deleted File Reference from DB {:?}", file.file_path)
+    }
+
+    let models = models3d::dsl::models3d
+        .load::<Model3D>(&mut connection)
+        .await
+        .unwrap();
+
+    // add refresh files in model folders
     for model in models {
-        let mut pth = config.libraries_path.clone();
-        pth.push(model.path);
-        pth.push("files");
+        let mut model_base_path = config.libraries_path.clone();
+        model_base_path.push(model.folder_path);
 
-        debug!("starting search for {:?}", pth);
-        for entry in walkdir::WalkDir::new(pth) {
+        let mut model_file_base_path = model_base_path.clone();
+        model_file_base_path.push("files");
+
+        debug!("starting search for {:?}", model_file_base_path);
+        for entry in walkdir::WalkDir::new(model_file_base_path) {
             let mesh_files = ["stl", "3mf", "obj"];
-            let entry = entry.unwrap();
-            let file_path = entry.path();
+            let entry: walkdir::DirEntry = entry.unwrap();
+            let file_pth = entry.path();
 
-            if file_path.is_dir() {
+            if file_pth.is_dir() {
                 continue;
             }
 
-            if let Some(extension) = file_path.extension() {
+            if let Some(extension) = file_pth.extension() {
                 if !mesh_files.contains(&extension.to_str().unwrap()) {
                     continue;
                 }
             }
 
+            let result: Option<File3D> = files3d::dsl::files3d
+                .filter(
+                    files3d::dsl::file_path.eq(pathdiff::diff_paths(file_pth, &model_base_path)
+                        .unwrap()
+                        .to_str()
+                        .unwrap()),
+                )
+                .first::<File3D>(&mut connection)
+                .await
+                .ok();
+
+            // entry exist and everything is fine
+            if result.is_some() {
+                continue;
+            }
+
             let mut img_path = config.preview_cache_dir.clone();
-            img_path.push(format!("{}.png", Uuid::new_v4()));
+            let file_name = format!("{}.png", Uuid::new_v4());
+            img_path.push(file_name.clone());
 
             let mut render_config = stl_thumb::config::Config::default();
-            render_config.stl_filename = file_path.to_str().unwrap().to_string();
+            render_config.stl_filename = file_pth.to_str().unwrap().to_string();
             render_config.img_filename = img_path.to_str().unwrap().to_string();
 
             stl_thumb::render_to_file(&render_config).unwrap();
+
+            let new_file = NewFile3D {
+                model_id: model.id,
+                file_path: pathdiff::diff_paths(file_pth, &model_base_path)
+                    .unwrap()
+                    .to_str()
+                    .unwrap()
+                    .to_string(),
+                preview_image: Some(file_name),
+                file_hash: Some(
+                    sha256::try_async_digest(file_pth)
+                        .await
+                        .unwrap()
+                        .to_string(),
+                ),
+            };
+            diesel::insert_into(files3d::table)
+                .values(&new_file)
+                .execute(&mut connection)
+                .await
+                .unwrap();
+            debug!("Created File {:?}", new_file.file_path)
+        }
+    }
+
+    // delete old cache images
+    let mut preview_cache_dir = fs::read_dir(&config.preview_cache_dir).await.unwrap();
+
+    while let Some(entry) = preview_cache_dir.next_entry().await? {
+        let pth = entry.path();
+
+        if !pth.is_file() {
+            continue;
+        }
+
+        let file_name = pth.file_name().unwrap().to_str().unwrap().to_string();
+
+        let exists = files3d::dsl::files3d
+            .filter(files3d::dsl::preview_image.eq(&file_name))
+            .first::<File3D>(&mut connection)
+            .await
+            .is_ok();
+
+        if !exists {
+            match fs::remove_file(&pth).await {
+                Ok(()) => debug!("File deleted successfully: {}", pth.display()),
+                Err(e) => eprintln!("Failed to delete file: {}. Error: {}", pth.display(), e),
+            }
         }
     }
 

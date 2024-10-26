@@ -4,7 +4,7 @@ diesel::table! {
     files3d (id) {
         id -> Integer,
         model_id -> Integer,
-        path -> Text,
+        file_path -> Text,
         preview_image -> Nullable<Text>,
         date_added -> Nullable<Timestamp>,
         file_hash -> Nullable<Text>,
@@ -18,7 +18,7 @@ diesel::table! {
         name -> Text,
         license -> Nullable<Text>,
         author -> Nullable<Text>,
-        path -> Text,
+        folder_path -> Text,
         origin -> Nullable<Text>,
         date_added -> Nullable<Timestamp>,
         images -> Text,
