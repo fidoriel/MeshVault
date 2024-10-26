@@ -6,8 +6,7 @@ import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { DetailedModelResponse } from "./bindings";
 import { BACKEND_BASE_URL } from "./lib/api";
-import { saveAs } from 'file-saver';
-
+import { saveAs } from "file-saver";
 
 import {
     DropdownMenu,
@@ -17,11 +16,6 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-
-function handleDownload(filePath: string) {
-    const url = BACKEND_BASE_URL + filePath;
-    saveAs(url, filePath.split('/').pop());
-}
 
 function OptionsDropdownMenu() {
     return (
@@ -108,7 +102,11 @@ function InfoCard({ model }: { model: DetailedModelResponse }) {
             </div>
 
             <div className="space-y-3 mb-6">
-                <Button size="lg" className="w-full">
+                <Button
+                    size="lg"
+                    className="w-full"
+                    onClick={() => (window.location.href = BACKEND_BASE_URL + "/api/download/" + model.package_name)}
+                >
                     <Download className="mr-2 h-5 w-5" />
                     Download
                 </Button>
@@ -180,10 +178,14 @@ function FileList({ model }: { model: DetailedModelResponse }) {
     return (
         <div className="max-w-6xl mx-auto p-6">
             <div className="mb-6 flex items-center justify-between">
-                <h2 className="text-xl font-bold">Modelldateien {model.title}</h2>
-                <Button variant="outline" className="flex items-center gap-2">
+                <h2 className="text-xl font-bold">Model Files</h2>
+                <Button
+                    variant="outline"
+                    className="flex items-center gap-2"
+                    onClick={() => (window.location.href = BACKEND_BASE_URL + "/api/download/" + model.package_name)}
+                >
                     <Download size={16} />
-                    Alle Dateien (483 KB)
+                    All Files (483 KB)
                 </Button>
             </div>
 
@@ -202,7 +204,13 @@ function FileList({ model }: { model: DetailedModelResponse }) {
                             </div>
 
                             <div className="flex gap-2">
-                                <Button variant="outline" className="flex items-center gap-2" onClick={() => {handleDownload(file.file_path)}}>
+                                <Button
+                                    variant="outline"
+                                    className="flex items-center gap-2"
+                                    onClick={() => {
+                                        saveAs(BACKEND_BASE_URL + file.file_path, file.file_path.split("/").pop());
+                                    }}
+                                >
                                     <Download size={16} />
                                     Download
                                 </Button>
@@ -240,7 +248,7 @@ function Model() {
 
     useEffect(() => {
         getModels();
-    }, []);
+    }, [slug]);
 
     return (
         <>

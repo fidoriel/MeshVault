@@ -1,6 +1,6 @@
 FROM --platform=$BUILDPLATFORM rust:1.82-bookworm AS rust-builder
 
-RUN apt-get update -y && apt-get install gcc-aarch64-linux-gnu gcc-x86-64-linux-gnu -y;
+RUN apt-get update -y && apt-get install gcc-aarch64-linux-gnu gcc-x86-64-linux-gnu -y
 
 RUN rustup target add x86_64-unknown-linux-gnu 
 RUN rustup target add aarch64-unknown-linux-gnu
@@ -15,6 +15,19 @@ COPY migrations/ migrations/
 
 ARG TARGETPLATFORM
 ARG BUILDPLATFORM
+
+RUN if [ "$TARGETPLATFORM" = "linux/arm64" ]; then \
+        dpkg --add-architecture arm64 && \
+        apt-get update -y && \
+        apt-get install -y sqlite3:arm64 libsqlite3-dev:arm64; \
+    elif [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
+        dpkg --add-architecture amd64 && \
+        apt-get update -y && \
+        apt-get install -y sqlite3:amd64 libsqlite3-dev:amd64; \
+    else \
+        echo "Unsupported architecture: $TARGETPLATFORM" && exit 1; \
+    fi
+
 RUN echo "Running on $BUILDPLATFORM building for $TARGETPLATFORM"
 RUN if [ "$TARGETPLATFORM" = "linux/arm64" ]; then \
         export TARGET_CHAIN=aarch64-unknown-linux-gnu; \
@@ -44,6 +57,7 @@ COPY package.json package-lock.json ./
 RUN npm install
 
 COPY index.html postcss.config.js tailwind.config.js tsconfig.app.json tsconfig.json tsconfig.node.json vite.config.ts ./
+COPY public/ public/ 
 COPY frontend/ frontend/ 
 
 COPY --from=rust-bindings-builder /code/bindings.ts /code/frontend/bindings.ts
@@ -51,11 +65,16 @@ RUN npm run build
 
 
 
-FROM debian:bookworm
+FROM debian:bookworm AS target-image
 
-ENV DATABASE_URL /meshvault/data/db.sqlite3
-ENV LIBRARIES_PATH /meshvault/3dassets
-ENV HOST "0.0.0.0:3000"
+ENV DATABASE_URL=/meshvault/data/db.sqlite3
+ENV LIBRARIES_PATH=/meshvault/3dassets
+ENV HOST="0.0.0.0"
+ENV PORT="3000"
+
+RUN apt-get update && \
+    apt-get install -y sqlite3 && \
+    rm -rf /var/lib/apt/lists/*
 
 WORKDIR /meshvault
 RUN mkdir data

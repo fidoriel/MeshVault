@@ -26,8 +26,9 @@ use types::{DetailedModelResponse, ModelResponseList};
 
 pub mod parse_library;
 pub mod schema;
+pub mod stream_dl;
 pub mod types;
-use crate::schema::models3d::dsl::*;
+use crate::schema::models3d;
 use crate::types::Model3D;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -105,8 +106,8 @@ async fn get_model_by_slug(
 ) -> impl IntoResponse {
     let mut connection = state.pool.get().await.unwrap();
 
-    let result = models3d
-        .filter(name.eq(slug))
+    let result = models3d::dsl::models3d
+        .filter(models3d::dsl::name.eq(slug))
         .first::<Model3D>(&mut connection)
         .await
         .unwrap();
@@ -127,10 +128,22 @@ async fn handle_refresh(State(state): State<AppState>) -> impl IntoResponse {
 async fn list_models(State(state): State<AppState>) -> impl IntoResponse {
     let mut connection = state.pool.get().await.unwrap();
 
-    let all_models = models3d.load::<Model3D>(&mut connection).await.unwrap();
+    let all_models = models3d::dsl::models3d
+        .load::<Model3D>(&mut connection)
+        .await
+        .unwrap();
     let response = ModelResponseList::from_model_3d(all_models, &state.config).unwrap();
 
     (StatusCode::OK, Json(response))
+}
+
+async fn handle_zip_download(
+    State(state): State<AppState>,
+    Path(folder_path): Path<String>,
+) -> impl IntoResponse {
+    let mut path = state.config.libraries_path.clone();
+    path.push(folder_path);
+    stream_dl::zip_folder_stream(path, &state.config).await
 }
 
 pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("./migrations");
@@ -199,9 +212,8 @@ async fn main() {
         .route("/refresh", post(handle_refresh))
         .route("/models/list", get(list_models))
         .route("/model/:slug", get(get_model_by_slug))
+        .route("/download/:folder", get(handle_zip_download))
         .with_state(app_state);
-
-    let serve_dir = ServeDir::new("dist");
 
     let app = Router::new()
         .route("/healthz", get(healthz))
@@ -214,8 +226,7 @@ async fn main() {
             &config.cache_prefix.to_string(),
             ServeDir::new(config.preview_cache_dir),
         )
-        .route_service("/", ServeFile::new("dist/index.html"))
-        .fallback_service(serve_dir)
+        .nest_service("/", ServeDir::new("dist")) // deliver vite bundle
         .fallback(fallback_404)
         .layer(cors);
 
