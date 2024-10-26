@@ -11,6 +11,7 @@ COPY .cargo/config.toml .cargo/config.toml
 RUN cargo fetch
 
 COPY backend/ backend/
+COPY migrations/ migrations/
 
 ARG TARGETPLATFORM
 ARG BUILDPLATFORM
