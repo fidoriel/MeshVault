@@ -1,4 +1,3 @@
-use std::fs::File;
 use std::path::PathBuf;
 
 use crate::schema::{files3d, models3d};
@@ -234,7 +233,7 @@ impl DetailedFileResponse {
             id: file.id,
             model_id: file.model_id,
             file_path: url_file_path,
-            preview_image: Some(file.get_url_preview_path(&config)),
+            preview_image: Some(file.get_url_preview_path(config)),
             date_added: file.date_added,
             file_hash: file.file_hash.clone(),
         }
@@ -248,6 +247,7 @@ pub struct DetailedModelResponse {
     pub title: String,
     pub name: String,
     pub license: Option<String>,
+    pub package_name: String,
     pub author: Option<String>,
     pub origin: Option<String>,
     pub images: Vec<String>,
@@ -287,7 +287,7 @@ impl DetailedModelResponse {
         let mut detailed_files: Vec<DetailedFileResponse> = Vec::new();
 
         for file in &files {
-            let detailed_file = DetailedFileResponse::from_file_3d(file, connection, &config).await;
+            let detailed_file = DetailedFileResponse::from_file_3d(file, connection, config).await;
             detailed_files.push(detailed_file);
         }
 
@@ -295,10 +295,11 @@ impl DetailedModelResponse {
             id: model.id,
             title: model.title.clone(),
             name: model.name.clone(),
+            package_name: model.folder_path.clone(),
             license: model.license.clone(),
             author: model.author.clone(),
             origin: model.origin.clone(),
-            images: images,
+            images,
             files: detailed_files,
         })
     }

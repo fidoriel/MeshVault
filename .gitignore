@@ -63,3 +63,7 @@ dist-ssr
 *.sqlite3
 docker_data/*
 local_data/*
+meshvault
+
+*.zip
+*.gz
