@@ -257,7 +257,7 @@ pub async fn refresh_library(
             img_path.push(file_name.clone());
 
             let mut render_config = stl_thumb::config::Config::default();
-            render_config.stl_filename = file_pth.to_str().unwrap().to_string();
+            render_config.model_filename = file_pth.to_str().unwrap().to_string();
             render_config.img_filename = img_path.to_str().unwrap().to_string();
 
             stl_thumb::render_to_file(&render_config).unwrap();

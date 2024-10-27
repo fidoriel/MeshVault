@@ -73,7 +73,8 @@ ENV HOST="0.0.0.0"
 ENV PORT="3000"
 
 RUN apt-get update && \
-    apt-get install -y sqlite3 libosmesa6 && \
+    apt-get install -y sqlite3 && \
+    apt-get install -y libosmesa6-dev libfreetype6 libfontconfig1 && \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /meshvault
