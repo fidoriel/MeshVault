@@ -4,12 +4,15 @@ use crate::schema::{files3d, models3d};
 use crate::Config;
 use anyhow::{Error, Result};
 use chrono::NaiveDateTime;
-use diesel::prelude::*;
+use diesel::{connection, prelude::*};
 use diesel_async::{AsyncConnection, RunQueryDsl};
 use serde::{Deserialize, Serialize};
 use typeshare::typeshare;
 
 fn comma_separated_to_pathbuf_vec(input: &str) -> Vec<PathBuf> {
+    if input.trim().is_empty() {
+        return Vec::new();
+    }
     input.split(',').map(|s| PathBuf::from(s.trim())).collect()
 }
 
@@ -21,14 +24,44 @@ fn pathbuf_vec_to_comma_separated(paths: Vec<PathBuf>) -> String {
         .join(",")
 }
 
+enum MeshFiles {
+    Obj,
+    Stl,
+    Threemf,
+}
+
+enum CadFormats {
+    Step,
+    Stp,
+    F3d,
+    Scad,
+}
+
+enum ImageFormats {
+    Jpg,
+    Jpeg,
+    Png,
+    Gif,
+    Bmp,
+    Tiff,
+    Webp,
+}
+
+#[typeshare]
+#[derive(Serialize)]
+pub struct UploadResponse {
+    pub success: bool,
+    pub message: String,
+}
+
 #[typeshare]
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ModelPackV0_1 {
-    version: String,
-    title: String,
-    author: String,
-    origin: String,
-    license: String,
+    pub version: String,
+    pub title: String,
+    pub author: String,
+    pub origin: String,
+    pub license: String,
 }
 
 #[typeshare]
@@ -50,6 +83,19 @@ impl Model3D {
     pub fn relative_image_paths(&self) -> Vec<PathBuf> {
         comma_separated_to_pathbuf_vec(&self.images)
     }
+
+    pub async fn get_files3d<Conn>(&self, connection: &mut Conn) -> Result<Vec<File3D>, Error>
+    where
+        Conn: AsyncConnection<Backend = diesel::sqlite::Sqlite>,
+    {
+        let files = files3d::dsl::files3d
+            .filter(files3d::dsl::model_id.eq(self.id))
+            .load::<File3D>(connection)
+            .await
+            .unwrap();
+
+        Ok(files)
+    }
 }
 
 #[typeshare]
@@ -65,8 +111,15 @@ pub struct ModelResponse {
 }
 
 impl ModelResponse {
-    pub fn from_model_3d(model: &Model3D, config: &Config) -> Result<ModelResponse, Error> {
-        let images: Vec<String> = comma_separated_to_pathbuf_vec(&model.images)
+    pub async fn from_model_3d<Conn>(
+        model: &Model3D,
+        config: &Config,
+        connection: &mut Conn,
+    ) -> Result<ModelResponse, Error>
+    where
+        Conn: AsyncConnection<Backend = diesel::sqlite::Sqlite>,
+    {
+        let mut images: Vec<String> = comma_separated_to_pathbuf_vec(&model.images)
             .iter()
             .map(|p| {
                 format!(
@@ -77,6 +130,12 @@ impl ModelResponse {
                 )
             })
             .collect();
+
+        let files = model.get_files3d(connection).await?;
+
+        for file in &files {
+            images.push(file.get_url_preview_path(config));
+        }
 
         Ok(ModelResponse {
             id: model.id,
@@ -97,11 +156,20 @@ pub struct ModelResponseList {
 }
 
 impl ModelResponseList {
-    pub fn from_model_3d(model: Vec<Model3D>, config: &Config) -> Result<ModelResponseList, Error> {
+    pub async fn from_model_3d<Conn>(
+        model: Vec<Model3D>,
+        config: &Config,
+        connection: &mut Conn,
+    ) -> Result<ModelResponseList, Error>
+    where
+        Conn: AsyncConnection<Backend = diesel::sqlite::Sqlite>,
+    {
         let mut models: Vec<ModelResponse> = Vec::new();
 
         for m in model {
-            let model_response = ModelResponse::from_model_3d(&m, config).unwrap();
+            let model_response = ModelResponse::from_model_3d(&m, config, connection)
+                .await
+                .unwrap();
             models.push(model_response);
         }
 
@@ -275,10 +343,7 @@ impl DetailedModelResponse {
             })
             .collect();
 
-        let files = files3d::dsl::files3d
-            .filter(files3d::dsl::model_id.eq(model.id))
-            .load::<File3D>(connection)
-            .await?;
+        let files = model.get_files3d(connection).await?;
 
         for file in &files {
             images.push(file.get_url_preview_path(config));

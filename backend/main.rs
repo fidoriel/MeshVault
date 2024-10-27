@@ -1,7 +1,7 @@
 use axum::Json;
 use axum::{
     extract::Path,
-    extract::State,
+    extract::{DefaultBodyLimit, State},
     http::StatusCode,
     response::IntoResponse,
     routing::{get, post},
@@ -28,6 +28,7 @@ pub mod parse_library;
 pub mod schema;
 pub mod stream_dl;
 pub mod types;
+pub mod upload;
 use crate::schema::models3d;
 use crate::types::Model3D;
 
@@ -47,6 +48,8 @@ pub struct Config {
     cache_prefix: String,
     #[serde(skip_deserializing)]
     database_url: PathBuf,
+    #[serde(skip_deserializing)]
+    upload_cache: PathBuf,
     #[serde(skip_deserializing)]
     preview_cache_dir: PathBuf,
     #[serde(skip_deserializing)]
@@ -78,6 +81,7 @@ impl Config {
         self.database_url = self.data_dir.join("db.sqlite3");
         self.preview_cache_dir = self.data_dir.join("preview_cache");
         self.address = format!("{}:{}", self.host, self.port);
+        self.upload_cache = self.data_dir.join("upload_cache");
     }
 }
 
@@ -91,7 +95,7 @@ fn parse_config() -> Config {
 }
 
 #[derive(Clone)]
-struct AppState {
+pub struct AppState {
     config: Config,
     pool: Pool<SyncConnectionWrapper<SqliteConnection>>,
 }
@@ -132,7 +136,9 @@ async fn list_models(State(state): State<AppState>) -> impl IntoResponse {
         .load::<Model3D>(&mut connection)
         .await
         .unwrap();
-    let response = ModelResponseList::from_model_3d(all_models, &state.config).unwrap();
+    let response = ModelResponseList::from_model_3d(all_models, &state.config, &mut connection)
+        .await
+        .unwrap();
 
     (StatusCode::OK, Json(response))
 }
@@ -213,6 +219,8 @@ async fn main() {
         .route("/models/list", get(list_models))
         .route("/model/:slug", get(get_model_by_slug))
         .route("/download/:folder", get(handle_zip_download))
+        .route("/upload", post(upload::handle_upload))
+        .layer(DefaultBodyLimit::disable())
         .with_state(app_state);
 
     let app = Router::new()

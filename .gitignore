@@ -64,6 +64,7 @@ dist-ssr
 docker_data/*
 local_data/*
 meshvault
+compressed_data/*
 
 *.zip
 *.gz
