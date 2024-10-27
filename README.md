@@ -1,5 +1,7 @@
 # MeshVault
 
+> Disclaimer: Do not use in any production like environment until the first version has been released. There __WILL__ be breaking changes and no migration guides. You have been warned. Have fun.
+
 A blazingly fast and simple self-hosted 3D files platform written in rust and typescript centered around a 3D model packaging format.
 
 ```bash
