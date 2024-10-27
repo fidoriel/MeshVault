@@ -2,11 +2,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Download, Heart, MoreVertical, RefreshCcw, Bookmark } from "lucide-react";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { DetailedModelResponse } from "./bindings";
 import { BACKEND_BASE_URL } from "./lib/api";
 import { saveAs } from "file-saver";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import {
     DropdownMenu,
@@ -16,6 +17,7 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { AspectRatio } from "./components/ui/aspect-ratio";
 
 function OptionsDropdownMenu() {
     return (
@@ -36,39 +38,122 @@ function OptionsDropdownMenu() {
 }
 
 function ImageGallery({ model }: { model: DetailedModelResponse }) {
-    const [selectedImage, setSelectedImage] = useState(model.images[0] || undefined);
+    const [selectedImage, setSelectedImage] = useState<number>(0);
+    const thumbnailsRef = useRef<HTMLDivElement>(null);
+
+    const nextImage = () => {
+        setSelectedImage((prev) => (prev + 1) % model.images.length);
+    };
+
+    const previousImage = () => {
+        setSelectedImage((prev) => (prev - 1 + model.images.length) % model.images.length);
+    };
+
+    // Scroll selected thumbnail into view
+    useEffect(() => {
+        const thumbnailsContainer = thumbnailsRef.current;
+        if (!thumbnailsContainer) return;
+
+        const selectedThumbnail = thumbnailsContainer.children[selectedImage] as HTMLElement;
+        if (!selectedThumbnail) return;
+
+        const scrollLeft =
+            selectedThumbnail.offsetLeft - thumbnailsContainer.offsetWidth / 2 + selectedThumbnail.offsetWidth / 2;
+        thumbnailsContainer.scrollTo({
+            left: scrollLeft,
+            behavior: "smooth",
+        });
+    }, [selectedImage]);
+
+    // Keyboard navigation
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === "ArrowLeft") {
+                previousImage();
+            } else if (e.key === "ArrowRight") {
+                nextImage();
+            }
+        };
+
+        window.addEventListener("keydown", handleKeyDown);
+        return () => window.removeEventListener("keydown", handleKeyDown);
+    }, []);
+
+    const scrollThumbnails = (direction: "left" | "right") => {
+        const thumbnailsContainer = thumbnailsRef.current;
+        if (!thumbnailsContainer) return;
+
+        const scrollAmount = 200; // Adjust this value to control scroll distance
+        const newScrollLeft = thumbnailsContainer.scrollLeft + (direction === "left" ? -scrollAmount : scrollAmount);
+        thumbnailsContainer.scrollTo({
+            left: newScrollLeft,
+            behavior: "smooth",
+        });
+    };
 
     return (
         <div className="w-full max-w-4xl">
-            <Card className="mb-4">
+            <Card className="mb-4 relative group">
                 <CardContent className="p-0">
-                    <img
-                        src={`${BACKEND_BASE_URL}${selectedImage}`}
-                        alt="Model Preview"
-                        className="w-full h-full object-cover rounded-lg"
-                    />
+                    <AspectRatio ratio={4 / 3}>
+                        <img
+                            src={`${BACKEND_BASE_URL}${model.images[selectedImage]}`}
+                            alt="Model Preview"
+                            className="w-full h-full object-cover rounded-lg"
+                        />
+                    </AspectRatio>
+                    <button
+                        onClick={previousImage}
+                        className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                        aria-label="Previous image"
+                    >
+                        <ChevronLeft className="h-6 w-6" />
+                    </button>
+                    <button
+                        onClick={nextImage}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                        aria-label="Next image"
+                    >
+                        <ChevronRight className="h-6 w-6" />
+                    </button>
                 </CardContent>
             </Card>
 
-            <div className="flex gap-1 mb-1 overflow-x-auto">
-                {model.images.map((img, index) => (
-                    <div key={index} className="p-1">
-                        <button
-                            className={
-                                img == selectedImage
-                                    ? "flex-shrink-0 outline-none ring-2 ring-blue-500 rounded-lg"
-                                    : "flex-shrink-0 rounded-lg"
-                            }
-                        >
-                            <img
-                                onClick={() => setSelectedImage(img)}
-                                src={`${BACKEND_BASE_URL}${img}`}
-                                alt={`Preview ${index + 1}`}
-                                className="w-16 h-16 object-cover rounded-lg hover:opacity-80 transition-opacity"
-                            />
-                        </button>
-                    </div>
-                ))}
+            <div className="relative">
+                <button
+                    onClick={() => scrollThumbnails("left")}
+                    className="absolute left-0 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full p-1 z-10"
+                    aria-label="Scroll thumbnails left"
+                >
+                    <ChevronLeft className="h-4 w-4" />
+                </button>
+
+                <div ref={thumbnailsRef} className="flex gap-2 overflow-x-auto pb-2 px-8 scroll-smooth scrollbar-hide">
+                    {model.images.map((img, index) => (
+                        <div key={index} className="w-20 h-20 flex-shrink-0 p-1 pb-2">
+                            <button
+                                onClick={() => setSelectedImage(index)}
+                                className={`w-full h-full relative rounded-lg overflow-hidden ${
+                                    index === selectedImage ? "ring-2 ring-offset-2" : "hover:opacity-80"
+                                }`}
+                            >
+                                <img
+                                    src={`${BACKEND_BASE_URL}${img}`}
+                                    alt={`Preview ${index + 1}`}
+                                    className="w-full h-full object-cover"
+                                />
+                            </button>
+                        </div>
+                    ))}
+                </div>
+
+                <button
+                    onClick={() => scrollThumbnails("right")}
+                    className="absolute right-0 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full p-1 z-10"
+                    aria-label="Scroll thumbnails right"
+                >
+                    <ChevronRight className="h-4 w-4" />
+                </button>
             </div>
         </div>
     );
