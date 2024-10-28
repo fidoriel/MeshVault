@@ -4,7 +4,7 @@ import { Download, Heart, MoreVertical, RefreshCcw, Bookmark } from "lucide-reac
 
 import { useState, useEffect, useRef } from "react";
 import { useParams } from "react-router-dom";
-import { DetailedModelResponse } from "./bindings";
+import { DetailedFileResponse, DetailedModelResponse } from "./bindings";
 import { BACKEND_BASE_URL } from "./lib/api";
 import { saveAs } from "file-saver";
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -18,6 +18,9 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { AspectRatio } from "./components/ui/aspect-ratio";
+import { Dialog, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from "./components/ui/dialog";
+import { DialogHeader } from "./components/ui/dialog";
+import ModelViewer from "./ModelViewer";
 
 function OptionsDropdownMenu() {
     return (
@@ -65,7 +68,6 @@ function ImageGallery({ model }: { model: DetailedModelResponse }) {
         });
     }, [selectedImage]);
 
-    // Keyboard navigation
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.key === "ArrowLeft") {
@@ -78,18 +80,6 @@ function ImageGallery({ model }: { model: DetailedModelResponse }) {
         window.addEventListener("keydown", handleKeyDown);
         return () => window.removeEventListener("keydown", handleKeyDown);
     }, []);
-
-    const scrollThumbnails = (direction: "left" | "right") => {
-        const thumbnailsContainer = thumbnailsRef.current;
-        if (!thumbnailsContainer) return;
-
-        const scrollAmount = 200; // Adjust this value to control scroll distance
-        const newScrollLeft = thumbnailsContainer.scrollLeft + (direction === "left" ? -scrollAmount : scrollAmount);
-        thumbnailsContainer.scrollTo({
-            left: newScrollLeft,
-            behavior: "smooth",
-        });
-    };
 
     return (
         <div className="w-full max-w-4xl">
@@ -120,14 +110,6 @@ function ImageGallery({ model }: { model: DetailedModelResponse }) {
             </Card>
 
             <div className="relative">
-                <button
-                    onClick={() => scrollThumbnails("left")}
-                    className="absolute left-0 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full p-1 z-10"
-                    aria-label="Scroll thumbnails left"
-                >
-                    <ChevronLeft className="h-4 w-4" />
-                </button>
-
                 <div ref={thumbnailsRef} className="flex gap-2 overflow-x-auto pb-2 px-8 scroll-smooth scrollbar-hide">
                     {model.images.map((img, index) => (
                         <div key={index} className="w-20 h-20 flex-shrink-0 p-1 pb-2">
@@ -146,14 +128,6 @@ function ImageGallery({ model }: { model: DetailedModelResponse }) {
                         </div>
                     ))}
                 </div>
-
-                <button
-                    onClick={() => scrollThumbnails("right")}
-                    className="absolute right-0 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full p-1 z-10"
-                    aria-label="Scroll thumbnails right"
-                >
-                    <ChevronRight className="h-4 w-4" />
-                </button>
             </div>
         </div>
     );
@@ -239,6 +213,56 @@ function Description({ model }: { model: DetailedModelResponse }) {
     );
 }
 
+function File({ file }: { file: DetailedFileResponse }) {
+    return (
+        <Card className="p-4">
+            <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                    <img src={BACKEND_BASE_URL + file.preview_image} className="h-24" />
+                    <div>
+                        <h3 className="font-medium">{file.file_path}</h3>
+                        <p className="text-sm text-gray-500">
+                            {"2 Mb"} | {String(file.date_added) || ""} | {file.file_hash || ""}
+                        </p>
+                    </div>
+                </div>
+
+                <div className="flex gap-2">
+                    <Dialog>
+                        <DialogTrigger asChild>
+                            <Button variant="outline">3D Viewer</Button>
+                        </DialogTrigger>
+
+                        <DialogContent className="w-full h-full max-w-[90vw] max-h-[90vh] flex flex-col">
+                            <DialogHeader>
+                                <DialogTitle className="large-text">
+                                    3D Viewer: {file.file_path.split("/").pop()}
+                                </DialogTitle>
+                                <DialogDescription className="large-text">
+                                    Pan with Right Mouse Button, Rotate with Left Mouse Button and Zoom with Scroll
+                                    Wheel
+                                </DialogDescription>
+                            </DialogHeader>
+                            <ModelViewer file_path={file.file_path} />
+                        </DialogContent>
+                    </Dialog>
+
+                    <Button
+                        variant="outline"
+                        className="flex items-center gap-2"
+                        onClick={() => {
+                            saveAs(BACKEND_BASE_URL + file.file_path, file.file_path.split("/").pop());
+                        }}
+                    >
+                        <Download size={16} />
+                        Download
+                    </Button>
+                </div>
+            </div>
+        </Card>
+    );
+}
+
 function FileList({ model }: { model: DetailedModelResponse }) {
     const files = model.files;
 
@@ -258,32 +282,7 @@ function FileList({ model }: { model: DetailedModelResponse }) {
 
             <div className="space-y-4">
                 {files.map((file, index) => (
-                    <Card key={index} className="p-4">
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-4">
-                                <img src={BACKEND_BASE_URL + file.preview_image} className="h-24" />
-                                <div>
-                                    <h3 className="font-medium">{file.file_path}</h3>
-                                    <p className="text-sm text-gray-500">
-                                        {"2 Mb"} | {String(file.date_added) || ""} | {file.file_hash || ""}
-                                    </p>
-                                </div>
-                            </div>
-
-                            <div className="flex gap-2">
-                                <Button
-                                    variant="outline"
-                                    className="flex items-center gap-2"
-                                    onClick={() => {
-                                        saveAs(BACKEND_BASE_URL + file.file_path, file.file_path.split("/").pop());
-                                    }}
-                                >
-                                    <Download size={16} />
-                                    Download
-                                </Button>
-                            </div>
-                        </div>
-                    </Card>
+                    <File file={file} key={index} />
                 ))}
             </div>
         </div>

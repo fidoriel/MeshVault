@@ -16,4 +16,7 @@ export default defineConfig({
             "@": path.resolve(__dirname, "./frontend"),
         },
     },
+    build: {
+        chunkSizeWarningLimit: 1024, // the 3d viewer stuff is huge
+    },
 });
