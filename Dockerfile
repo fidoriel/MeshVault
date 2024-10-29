@@ -67,7 +67,7 @@ FROM debian:bookworm AS target-image
 ENV DATABASE_URL=/meshvault/data/db.sqlite3
 ENV LIBRARIES_PATH=/meshvault/3dassets
 ENV HOST="0.0.0.0"
-ENV PORT="3000"
+ENV PORT="51100"
 
 RUN apt-get update && \
     apt-get install -y sqlite3 && \
@@ -82,5 +82,5 @@ COPY --from=rust-builder /code/meshvault /meshvault/meshvault
 
 RUN chown -R 1000:1000 /meshvault
 USER 1000
-EXPOSE 3000
+EXPOSE 51100
 ENTRYPOINT [ "./meshvault" ]

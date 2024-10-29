@@ -61,7 +61,7 @@ fn default_host() -> String {
 }
 
 fn default_port() -> String {
-    "3000".to_string()
+    "51100".to_string()
 }
 
 fn default_log_level() -> String {
