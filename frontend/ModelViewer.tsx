@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { BACKEND_BASE_URL } from "./lib/api";
 
@@ -7,8 +7,10 @@ import { STLLoader } from "three/examples/jsm/loaders/STLLoader.js";
 import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader.js";
 import { ThreeMFLoader } from "three/examples/jsm/loaders/3MFLoader.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { Loader2 } from "lucide-react";
 
 function ModelViewer({ file_path }: { file_path: string }) {
+    const [loading, setLoading] = useState(true);
     const mountRef = useRef<HTMLDivElement>(null);
 
     const file_type = file_path.split(".").pop()?.toLowerCase() || "";
@@ -47,42 +49,68 @@ function ModelViewer({ file_path }: { file_path: string }) {
         scene.add(axesHelper);
 
         const loader = new LoaderClass();
+
+        const material: THREE.Material = new THREE.MeshNormalMaterial({
+            flatShading: true,
+        });
+
         loader.load(BACKEND_BASE_URL + file_path, (data: THREE.Group | THREE.BufferGeometry) => {
+            setLoading(false);
+            let object: THREE.Mesh | THREE.Group | null = null;
+
             if (data instanceof THREE.BufferGeometry) {
                 data.computeBoundingBox();
                 const boundingBox = data.boundingBox;
                 const center = new THREE.Vector3();
                 boundingBox?.getCenter(center);
 
-                // center mesh
                 data.translate(-center.x, -center.y, -center.z);
-
-                const material: THREE.Material = new THREE.MeshNormalMaterial({
-                    flatShading: true,
-                });
-                const mesh: THREE.Mesh = new THREE.Mesh(data, material);
-                scene.add(mesh);
-
-                camera.position.set(0, 40, 80);
-                camera.lookAt(0, 0, 0);
-
-                // Animation Loop, this allows for pan and zoom
-                const animate = () => {
-                    requestAnimationFrame(animate);
-                    controls.update();
-                    renderer.render(scene, camera);
-                };
-                animate();
-            } else {
-                console.error("Loaded data is not of type BufferGeometry");
+                object = new THREE.Mesh(data, material);
+            } else if (data instanceof THREE.Group) {
+                const box = new THREE.Box3().setFromObject(data);
+                const center = box.getCenter(new THREE.Vector3());
+                data.position.sub(center);
+                object = data;
             }
+
+            if (object == null) {
+                return;
+            }
+
+            object.traverse(function (node: THREE.Object3D) {
+                const mesh = node as THREE.Mesh;
+                if (mesh.isMesh === true) {
+                    mesh.material = material;
+                }
+            });
+
+            scene.add(object);
+
+            camera.position.set(0, 40, 80);
+            camera.lookAt(0, 0, 0);
+
+            // Animation Loop, this allows for pan and zoom
+            const animate = () => {
+                requestAnimationFrame(animate);
+                controls.update();
+                renderer.render(scene, camera);
+            };
+            animate();
         });
         return () => {
             mount.removeChild(renderer.domElement);
         };
     }, []);
 
-    return <div ref={mountRef} className="flex-1 w-full h-full" />;
+    return (
+        <div ref={mountRef} className="flex-1 w-full h-full">
+            {loading && (
+                <div className="flex items-center justify-center fixed inset-0">
+                    <Loader2 className="animate-spin" size={64} />
+                </div>
+            )}
+        </div>
+    );
 }
 
 export default ModelViewer;
