@@ -9,9 +9,10 @@ use diesel_async::pooled_connection::bb8::Pool;
 use diesel_async::sync_connection_wrapper::SyncConnectionWrapper;
 use diesel_async::RunQueryDsl;
 use std::collections::HashSet;
+use std::panic;
 use std::path::{Path, PathBuf};
 use tokio::fs;
-use tracing::{debug, info};
+use tracing::{debug, error, info};
 use uuid::Uuid;
 
 pub async fn find_modelpack_directories(start_path: PathBuf) -> anyhow::Result<Vec<PathBuf>> {
@@ -260,7 +261,16 @@ pub async fn refresh_library(
             render_config.model_filename = file_pth.to_str().unwrap().to_string();
             render_config.img_filename = img_path.to_str().unwrap().to_string();
 
-            stl_thumb::render_to_file(&render_config).unwrap();
+            if let Err(err) = panic::catch_unwind(|| {
+                stl_thumb::render_to_file(&render_config).unwrap();
+            }) {
+                error!(
+                    "Unable to render preview: {:?} Error: {:?}",
+                    file_pth.to_str(),
+                    err
+                );
+                continue;
+            }
 
             let new_file = NewFile3D {
                 model_id: model.id,
