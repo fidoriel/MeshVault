@@ -11,6 +11,7 @@ import { Loader2 } from "lucide-react";
 
 function ModelViewer({ file_path }: { file_path: string }) {
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
     const mountRef = useRef<HTMLDivElement>(null);
 
     const file_type = file_path.split(".").pop()?.toLowerCase() || "";
@@ -54,59 +55,74 @@ function ModelViewer({ file_path }: { file_path: string }) {
             flatShading: true,
         });
 
-        loader.load(BACKEND_BASE_URL + file_path, (data: THREE.Group | THREE.BufferGeometry) => {
-            setLoading(false);
-            let object: THREE.Mesh | THREE.Group | null = null;
+        loader.load(
+            BACKEND_BASE_URL + file_path,
+            (data: THREE.Group | THREE.BufferGeometry) => {
+                setLoading(false);
+                let object: THREE.Mesh | THREE.Group | null = null;
 
-            if (data instanceof THREE.BufferGeometry) {
-                data.computeBoundingBox();
-                const boundingBox = data.boundingBox;
-                const center = new THREE.Vector3();
-                boundingBox?.getCenter(center);
+                if (data instanceof THREE.BufferGeometry) {
+                    data.computeBoundingBox();
+                    const boundingBox = data.boundingBox;
+                    const center = new THREE.Vector3();
+                    boundingBox?.getCenter(center);
 
-                data.translate(-center.x, -center.y, -center.z);
-                object = new THREE.Mesh(data, material);
-            } else if (data instanceof THREE.Group) {
-                const box = new THREE.Box3().setFromObject(data);
-                const center = box.getCenter(new THREE.Vector3());
-                data.position.sub(center);
-                object = data;
-            }
-
-            if (object == null) {
-                return;
-            }
-
-            object.traverse(function (node: THREE.Object3D) {
-                const mesh = node as THREE.Mesh;
-                if (mesh.isMesh === true) {
-                    mesh.material = material;
+                    data.translate(-center.x, -center.y, -center.z);
+                    object = new THREE.Mesh(data, material);
+                } else if (data instanceof THREE.Group) {
+                    const box = new THREE.Box3().setFromObject(data);
+                    const center = box.getCenter(new THREE.Vector3());
+                    data.position.sub(center);
+                    object = data;
                 }
-            });
 
-            scene.add(object);
+                if (object == null) {
+                    return;
+                }
 
-            camera.position.set(0, 40, 80);
-            camera.lookAt(0, 0, 0);
+                object.traverse(function (node: THREE.Object3D) {
+                    const mesh = node as THREE.Mesh;
+                    if (mesh.isMesh === true) {
+                        mesh.material = material;
+                    }
+                });
 
-            // Animation Loop, this allows for pan and zoom
-            const animate = () => {
-                requestAnimationFrame(animate);
-                controls.update();
-                renderer.render(scene, camera);
-            };
-            animate();
-        });
+                scene.add(object);
+
+                camera.position.set(0, 40, 80);
+                camera.lookAt(0, 0, 0);
+
+                // Animation Loop, this allows for pan and zoom
+                const animate = () => {
+                    requestAnimationFrame(animate);
+                    controls.update();
+                    renderer.render(scene, camera);
+                };
+                animate();
+            },
+            undefined,
+            (error) => {
+                console.error("An error happened during loading:", error);
+                setError("An error occurred while loading the model.");
+                setLoading(false);
+            },
+        );
+
         return () => {
             mount.removeChild(renderer.domElement);
         };
-    }, []);
+    }, [file_path]);
 
     return (
         <div ref={mountRef} className="flex-1 w-full h-full">
-            {loading && (
+            {loading && !error && (
                 <div className="flex items-center justify-center fixed inset-0">
                     <Loader2 className="animate-spin" size={64} />
+                </div>
+            )}
+            {error && (
+                <div className="flex items-center justify-center fixed inset-0">
+                    <p className="text-red-500">{error}</p>
                 </div>
             )}
         </div>

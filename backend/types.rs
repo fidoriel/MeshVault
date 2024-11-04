@@ -134,7 +134,9 @@ impl ModelResponse {
         let files = model.get_files3d(connection).await?;
 
         for file in &files {
-            images.push(file.get_url_preview_path(config));
+            if let Some(preview_path) = file.get_url_preview_path(config) {
+                images.push(preview_path);
+            }
         }
 
         Ok(ModelResponse {
@@ -261,12 +263,10 @@ impl File3D {
         )
     }
 
-    pub fn get_url_preview_path(&self, config: &Config) -> String {
-        format!(
-            "{}/{}",
-            config.cache_prefix.clone(),
-            &self.preview_image.clone().unwrap()
-        )
+    pub fn get_url_preview_path(&self, config: &Config) -> Option<String> {
+        self.preview_image
+            .as_ref()
+            .map(|preview_image| format!("{}/{}", config.cache_prefix.clone(), preview_image))
     }
 }
 
@@ -301,7 +301,7 @@ impl DetailedFileResponse {
             id: file.id,
             model_id: file.model_id,
             file_path: url_file_path,
-            preview_image: Some(file.get_url_preview_path(config)),
+            preview_image: file.get_url_preview_path(config),
             date_added: file.date_added,
             file_hash: file.file_hash.clone(),
         }
@@ -346,7 +346,9 @@ impl DetailedModelResponse {
         let files = model.get_files3d(connection).await?;
 
         for file in &files {
-            images.push(file.get_url_preview_path(config));
+            if let Some(preview_path) = file.get_url_preview_path(config) {
+                images.push(preview_path);
+            }
         }
 
         let mut detailed_files: Vec<DetailedFileResponse> = Vec::new();
