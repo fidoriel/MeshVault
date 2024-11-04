@@ -261,7 +261,7 @@ pub async fn refresh_library(
             render_config.model_filename = file_pth.to_str().unwrap().to_string();
             render_config.img_filename = img_path.to_str().unwrap().to_string();
 
-            if let Err(err) = panic::catch_unwind(|| {
+            let preview_image = if let Err(err) = panic::catch_unwind(|| {
                 stl_thumb::render_to_file(&render_config).unwrap();
             }) {
                 error!(
@@ -269,8 +269,10 @@ pub async fn refresh_library(
                     file_pth.to_str(),
                     err
                 );
-                continue;
-            }
+                None
+            } else {
+                Some(file_name)
+            };
 
             let new_file = NewFile3D {
                 model_id: model.id,
@@ -279,7 +281,7 @@ pub async fn refresh_library(
                     .to_str()
                     .unwrap()
                     .to_string(),
-                preview_image: Some(file_name),
+                preview_image,
                 file_hash: Some(
                     sha256::try_async_digest(file_pth)
                         .await
