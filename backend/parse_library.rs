@@ -2,20 +2,16 @@ use crate::schema::{files3d, models3d};
 use crate::types::ModelPackV0_1;
 use crate::types::{File3D, Model3D, NewFile3D, NewModel3D};
 use crate::Config;
-use anyhow::{Error, Result};
 use chrono::Local;
-use chrono::NaiveDateTime;
-use diesel::prelude::*;
 use diesel::prelude::*;
 use diesel::SqliteConnection;
 use diesel_async::pooled_connection::bb8::Pool;
 use diesel_async::sync_connection_wrapper::SyncConnectionWrapper;
 use diesel_async::AsyncConnection;
 use diesel_async::RunQueryDsl;
-use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
+use std::panic;
 use std::path::{Path, PathBuf};
-use std::{any, panic};
 use tokio::fs;
 use tracing::{debug, error, info};
 use uuid::Uuid;
@@ -155,7 +151,7 @@ pub async fn refresh_library(
 
     // add refresh files in model folders
     for model in models {
-        render_preview(&config, &mut connection, model).await?;
+        render_preview(&config, &mut connection, &model).await?;
     }
 
     // delete old cache images
@@ -257,13 +253,13 @@ where
 pub async fn render_preview<Conn>(
     config: &Config,
     connection: &mut Conn,
-    model: Model3D,
+    model: &Model3D,
 ) -> anyhow::Result<()>
 where
     Conn: AsyncConnection<Backend = diesel::sqlite::Sqlite>,
 {
     let mut model_base_path = config.libraries_path.clone();
-    model_base_path.push(model.folder_path);
+    model_base_path.push(model.folder_path.clone());
 
     debug!("starting search for {:?}", model_base_path);
     for entry in walkdir::WalkDir::new(&model_base_path) {

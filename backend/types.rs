@@ -1,10 +1,11 @@
 use std::path::PathBuf;
 
+use crate::parse_library::{add_or_update_model, render_preview};
 use crate::schema::{files3d, models3d};
 use crate::Config;
 use anyhow::{Error, Result};
 use chrono::NaiveDateTime;
-use diesel::{connection, prelude::*};
+use diesel::prelude::*;
 use diesel_async::{AsyncConnection, RunQueryDsl};
 use serde::{Deserialize, Serialize};
 use typeshare::typeshare;
@@ -95,6 +96,26 @@ impl Model3D {
             .unwrap();
 
         Ok(files)
+    }
+
+    pub fn absolute_path(&self, config: &Config) -> PathBuf {
+        let mut path = config.libraries_path.clone();
+        path.push(&self.folder_path);
+        path
+    }
+
+    pub async fn refresh_library<Conn>(
+        &self,
+        config: &Config,
+        connection: &mut Conn,
+    ) -> anyhow::Result<()>
+    where
+        Conn: AsyncConnection<Backend = diesel::sqlite::Sqlite>,
+    {
+        add_or_update_model(config, connection, &self.absolute_path(&config)).await?;
+        render_preview(&config, connection, &self).await?;
+
+        anyhow::Ok(())
     }
 }
 

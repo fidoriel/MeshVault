@@ -19,7 +19,7 @@ use diesel_migrations::{embed_migrations, EmbeddedMigrations};
 use serde_derive::{Deserialize, Serialize};
 use std::path::PathBuf;
 use tower_http::cors::{Any, CorsLayer};
-use tower_http::services::{ServeDir, ServeFile};
+use tower_http::services::ServeDir;
 use tracing::{debug, error, info};
 use tracing_subscriber::EnvFilter;
 use types::{DetailedModelResponse, ModelResponseList};
@@ -115,6 +115,24 @@ async fn get_model_by_slug(
         .first::<Model3D>(&mut connection)
         .await
         .unwrap();
+    let response = DetailedModelResponse::from_model_3d(&result, &state.config, &mut connection)
+        .await
+        .unwrap();
+    (StatusCode::OK, Json(response))
+}
+
+async fn refresh_model(
+    State(state): State<AppState>,
+    Path(slug): Path<String>,
+) -> impl IntoResponse {
+    let mut connection = state.pool.get().await.unwrap();
+
+    let result = models3d::dsl::models3d
+        .filter(models3d::dsl::name.eq(slug))
+        .first::<Model3D>(&mut connection)
+        .await
+        .unwrap();
+    result.refresh_library(&state.config, &mut connection).await;
     let response = DetailedModelResponse::from_model_3d(&result, &state.config, &mut connection)
         .await
         .unwrap();
@@ -218,6 +236,7 @@ async fn main() {
         .route("/refresh", post(handle_refresh))
         .route("/models/list", get(list_models))
         .route("/model/:slug", get(get_model_by_slug))
+        .route("/model/:slug/refresh", get(refresh_model))
         .route("/download/:folder", get(handle_zip_download))
         .route("/upload", post(upload::handle_upload))
         .layer(DefaultBodyLimit::disable())
