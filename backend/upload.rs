@@ -1,22 +1,20 @@
-use axum::{
-    extract::Multipart,
-    extract::State,
-    http::{header, StatusCode},
-    routing::post,
-    Json, Router,
-};
-use sanitize_filename::sanitize;
+use axum::{extract::Multipart, extract::State, http::StatusCode, Json};
+use diesel::prelude::*;
+use diesel_async::RunQueryDsl;
 use serde_json::{json, Value};
 use std::path::{Path, PathBuf};
 use tokio::fs::{self, File};
 use tokio::io::AsyncWriteExt;
-use tower_http::cors::CorsLayer;
-use tracing::{debug, error, info};
+use tracing::{debug, info};
+use tracing_subscriber::field::debug;
 use uuid::Uuid;
 
-use crate::parse_library;
+use crate::parse_library::{self, add_or_update_model};
+use crate::schema::models3d;
+use crate::types::Model3D;
 
 fn cleanup_temp_dir(temp_dir: &PathBuf) {
+    debug!("cleaned {}", temp_dir.display());
     fs_extra::remove_items(&[temp_dir.clone()])
         .unwrap_or_else(|e| debug!("Failed to remove temp dir: {}", e));
 }
@@ -171,9 +169,10 @@ pub async fn handle_upload(
         })?;
     }
 
+    let libraries_path = state.config.libraries_path.clone();
     fs_extra::move_items(
         &[tmp_final_structure],
-        state.config.libraries_path,
+        libraries_path.clone(),
         &fs_extra::dir::CopyOptions::new(),
     )
     .map_err(|_| {
@@ -183,8 +182,17 @@ pub async fn handle_upload(
 
     cleanup_temp_dir(&temp_dir);
 
+    let mut connection = state.pool.get().await.unwrap();
+    let final_path = libraries_path.join(&final_folder_name);
+    let model = add_or_update_model(&state.config, &mut connection, &final_path)
+        .await
+        .unwrap();
+    model.scan(&state.config, &mut connection).await;
+    debug!("Indexed {}", final_folder_name);
+
     let response = crate::types::UploadResponse {
         success: true,
+        slug: model.name,
         message: format!(
             "Successfully uploaded {} files",
             image_files.len() + mesh_files.len() + cad_files.len()

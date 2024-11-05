@@ -132,7 +132,7 @@ async fn refresh_model(
         .first::<Model3D>(&mut connection)
         .await
         .unwrap();
-    result.refresh_library(&state.config, &mut connection).await;
+    result.scan(&state.config, &mut connection).await;
     let response = DetailedModelResponse::from_model_3d(&result, &state.config, &mut connection)
         .await
         .unwrap();
@@ -172,7 +172,7 @@ async fn handle_zip_download(
 
 pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("./migrations");
 
-async fn get_connection_pool(config: &Config) -> Pool<SyncConnectionWrapper<SqliteConnection>> {
+async fn create_connection_pool(config: &Config) -> Pool<SyncConnectionWrapper<SqliteConnection>> {
     let mut db_config = ManagerConfig::default();
     db_config.custom_setup =
         Box::new(|url| SyncConnectionWrapper::<SqliteConnection>::establish(url));
@@ -220,7 +220,7 @@ async fn main() {
 
     migrate(&config);
 
-    let pool = get_connection_pool(&config).await;
+    let pool = create_connection_pool(&config).await;
 
     let app_state = AppState {
         config: config.clone(),

@@ -14,7 +14,6 @@ use std::panic;
 use std::path::{Path, PathBuf};
 use tokio::fs;
 use tracing::{debug, error, info};
-use uuid::Uuid;
 
 pub async fn find_modelpack_directories(start_path: PathBuf) -> anyhow::Result<Vec<PathBuf>> {
     let mut modelpack_dirs = Vec::new();
@@ -156,7 +155,7 @@ pub async fn refresh_library(
 
     // add refresh files in model folders
     for model in models {
-        render_preview(&config, &mut connection, &model).await?;
+        load_files_and_preview(&config, &mut connection, &model).await?;
     }
 
     // delete old cache images
@@ -205,7 +204,7 @@ pub async fn add_or_update_model<Conn>(
     config: &Config,
     connection: &mut Conn,
     dir: &PathBuf,
-) -> anyhow::Result<()>
+) -> anyhow::Result<Model3D>
 where
     Conn: AsyncConnection<Backend = diesel::sqlite::Sqlite>,
 {
@@ -222,7 +221,7 @@ where
     let mut image_dir = dir.clone();
     image_dir.push("images");
 
-    let new_object = NewModel3D::from_model_pack_v0_1(
+    let new_object: NewModel3D = NewModel3D::from_model_pack_v0_1(
         &model_pack_meta,
         &relative_dir,
         get_all_image_files(&image_dir, &dir).await.unwrap(),
@@ -242,19 +241,26 @@ where
             .execute(connection)
             .await
             .unwrap();
-        debug!("Updated {:?}", new_object.folder_path)
+        debug!("Updated {:?}", new_object.folder_path);
+        anyhow::Ok(existing_model)
     } else {
         diesel::insert_into(models3d::table)
             .values(&new_object)
             .execute(connection)
             .await
+            .ok();
+        debug!("Created Model {:?}", new_object.folder_path);
+
+        let result = models3d::dsl::models3d
+            .filter(models3d::dsl::folder_path.eq(relative_dir.to_str().unwrap()))
+            .first::<Model3D>(connection)
+            .await
             .unwrap();
-        debug!("Created Model {:?}", new_object.folder_path)
+        anyhow::Ok(result)
     }
-    anyhow::Ok(())
 }
 
-pub async fn render_preview<Conn>(
+pub async fn load_files_and_preview<Conn>(
     config: &Config,
     connection: &mut Conn,
     model: &Model3D,
@@ -272,6 +278,8 @@ where
             Err(e) => return Err(e.into()),
         };
 
+        debug!("scanning {}", entry.path().display());
+
         let mesh_files = ["stl", "3mf", "obj"];
         let file_pth = entry.path();
 
@@ -285,24 +293,28 @@ where
             }
         }
 
+        let relative_path = pathdiff::diff_paths(file_pth, &model_base_path).unwrap();
+
         let result: Option<File3D> = files3d::dsl::files3d
-            .filter(
-                files3d::dsl::file_path.eq(pathdiff::diff_paths(file_pth, &model_base_path)
-                    .unwrap()
-                    .to_str()
-                    .unwrap()),
-            )
+            .filter(files3d::dsl::file_path.eq(relative_path.to_str().unwrap()))
+            .filter(files3d::dsl::model_id.eq(model.id))
             .first::<File3D>(connection)
             .await
             .ok();
 
         // entry exist and everything is fine
         if result.is_some() {
+            debug!("skipping {}", relative_path.display());
             continue;
         }
 
+        let hash = sha256::try_async_digest(file_pth)
+            .await
+            .unwrap()
+            .to_string();
+
         let mut img_path = config.preview_cache_dir.clone();
-        let file_name = format!("{}.png", Uuid::new_v4());
+        let file_name = format!("{}.png", hash);
         img_path.push(file_name.clone());
 
         let mut render_config = stl_thumb::config::Config::default();
@@ -330,12 +342,7 @@ where
                 .unwrap()
                 .to_string(),
             preview_image,
-            file_hash: Some(
-                sha256::try_async_digest(file_pth)
-                    .await
-                    .unwrap()
-                    .to_string(),
-            ),
+            file_hash: Some(hash),
         };
         diesel::insert_into(files3d::table)
             .values(&new_file)

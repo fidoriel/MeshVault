@@ -10,6 +10,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { BACKEND_BASE_URL } from "./lib/api";
 import { useToast } from "./hooks/use-toast";
 import { UploadResponse } from "./bindings";
+import { useNavigate } from "react-router-dom";
 
 interface ModelPackV0_1 {
     version: string;
@@ -19,7 +20,7 @@ interface ModelPackV0_1 {
     license: string;
 }
 
-function UploadModel() {
+function UploadEditModel() {
     const [modelData, setModelData] = useState<ModelPackV0_1>({
         version: "0.1",
         title: "",
@@ -40,6 +41,8 @@ function UploadModel() {
     const meshFileFormats = [".obj", ".stl", ".3mf"];
     const cadFileFormats = [".step", ".stp", ".f3d", ".scad", ".igs", ".iges"];
     const imageFileFormats = [".jpg", ".jpeg", ".png", ".gif", ".bmp", ".tiff", ".webp"];
+
+    const navigate = useNavigate();
 
     const isValidFileType = (file: File) => {
         const ext = file.name.toLowerCase().substring(file.name.lastIndexOf("."));
@@ -157,6 +160,8 @@ function UploadModel() {
             setCadFiles([]);
             setThreedFiles([]);
             setImgFiles([]);
+
+            navigate(`/model/${result.slug}`);
         } catch (err) {
             setError(err instanceof Error ? err.message : "Upload failed");
             setErrorMessage(err instanceof Error ? err.message : "Upload failed");
@@ -353,4 +358,4 @@ function UploadModel() {
     );
 }
 
-export default UploadModel;
+export default UploadEditModel;

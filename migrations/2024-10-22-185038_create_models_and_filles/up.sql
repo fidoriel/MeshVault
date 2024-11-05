@@ -13,9 +13,10 @@ CREATE TABLE models3d (
 CREATE TABLE files3d (
     id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     model_id INTEGER NOT NULL, -- Foreign key to models table
-    file_path VARCHAR(4096) NOT NULL UNIQUE,
-    preview_image VARCHAR(4096) UNIQUE,
+    file_path VARCHAR(4096) NOT NULL,
+    preview_image VARCHAR(4096),
     date_added TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     file_hash CHAR(135), -- sha256 including prefix
+    UNIQUE (model_id, file_path),
     FOREIGN KEY (model_id) REFERENCES models(id) ON DELETE CASCADE -- Delete all if model is removed
 );

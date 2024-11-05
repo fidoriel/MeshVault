@@ -11,7 +11,7 @@ import { NavLink } from "react-router-dom";
 import { Button } from "./components/ui/button";
 import { BACKEND_BASE_URL } from "./lib/api";
 import AboutModelPack from "./ModelPack";
-import UploadModel from "./UploadModel";
+import UploadEditModel from "./UploadEditModel";
 import { Toaster } from "./components/ui/toaster";
 
 const ACTIVE_NAV = "text-sm font-medium text-primary";
@@ -88,7 +88,7 @@ function App() {
                     <div className="container mx-auto py-6">
                         <Routes>
                             <Route path="/" element={<Models />} />
-                            <Route path="/upload" element={<UploadModel />} />
+                            <Route path="/upload" element={<UploadEditModel />} />
                             <Route path="/model/:slug" element={<Model />} />
                             <Route path="/modelpack" element={<AboutModelPack />} />
                         </Routes>

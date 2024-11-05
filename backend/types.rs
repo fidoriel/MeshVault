@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use crate::parse_library::{add_or_update_model, clean_file_system, render_preview};
+use crate::parse_library::{add_or_update_model, clean_file_system, load_files_and_preview};
 use crate::schema::{files3d, models3d};
 use crate::Config;
 use anyhow::{Error, Result};
@@ -52,6 +52,7 @@ enum ImageFormats {
 #[derive(Serialize)]
 pub struct UploadResponse {
     pub success: bool,
+    pub slug: String,
     pub message: String,
 }
 
@@ -104,18 +105,14 @@ impl Model3D {
         path
     }
 
-    pub async fn refresh_library<Conn>(
-        &self,
-        config: &Config,
-        connection: &mut Conn,
-    ) -> anyhow::Result<()>
+    pub async fn scan<Conn>(&self, config: &Config, connection: &mut Conn) -> anyhow::Result<()>
     where
         Conn: AsyncConnection<Backend = diesel::sqlite::Sqlite>,
     {
         add_or_update_model(config, connection, &self.absolute_path(&config)).await?;
-        render_preview(&config, connection, &self).await?;
         let files = self.get_files3d(connection).await?;
         clean_file_system(&config, connection, files).await?;
+        load_files_and_preview(&config, connection, &self).await?;
 
         anyhow::Ok(())
     }

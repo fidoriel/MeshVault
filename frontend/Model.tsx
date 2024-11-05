@@ -135,8 +135,6 @@ function ImageGallery({ model }: { model: DetailedModelResponse }) {
 }
 
 function InfoCard({ model, refresh }: { model: DetailedModelResponse; refresh: () => void }) {
-    const [loadingRefresh, setLoadingRefresh] = useState<boolean>(false);
-
     return (
         <div className="w-full max-w-lg px-1">
             <div className="flex justify-between items-start mb-6">
@@ -181,13 +179,10 @@ function InfoCard({ model, refresh }: { model: DetailedModelResponse; refresh: (
                         className="w-full"
                         size="icon"
                         onClick={() => {
-                            setLoadingRefresh(true);
                             refresh();
-                            setLoadingRefresh(false);
                         }}
-                        disabled={loadingRefresh}
                     >
-                        <RefreshCcw className={loadingRefresh ? "spin-left h-5 w-5" : "h-5 w-5"} />
+                        <RefreshCcw className={"h-5 w-5"} />
                     </Button>
                     <Button variant="outline" className="w-full">
                         <Bookmark className="h-5 w-5" />
