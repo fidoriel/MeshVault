@@ -142,7 +142,12 @@ pub async fn refresh_library(
     // generate file3d entrys
     fs::create_dir_all(config.preview_cache_dir.clone()).await?;
 
-    clean_file_system(&config, &mut connection).await?;
+    let files = files3d::dsl::files3d
+        .load::<File3D>(&mut connection)
+        .await
+        .unwrap();
+
+    clean_file_system(&config, &mut connection, files).await?;
 
     let models = models3d::dsl::models3d
         .load::<Model3D>(&mut connection)
@@ -165,15 +170,14 @@ pub async fn refresh_library(
     Ok(())
 }
 
-pub async fn clean_file_system<Conn>(config: &Config, connection: &mut Conn) -> anyhow::Result<()>
+pub async fn clean_file_system<Conn>(
+    config: &Config,
+    connection: &mut Conn,
+    files: Vec<File3D>,
+) -> anyhow::Result<()>
 where
     Conn: AsyncConnection<Backend = diesel::sqlite::Sqlite>,
 {
-    let files = files3d::dsl::files3d
-        .load::<File3D>(connection)
-        .await
-        .unwrap();
-
     // delete file references deleted in fs
     for file in files {
         let file_pth = file.get_file_path(connection, &config).await.clone();
@@ -338,7 +342,7 @@ where
             .execute(connection)
             .await
             .unwrap();
-        debug!("Created File {:?}", new_file.file_path)
+        debug!("Created Preview {:?}", new_file.file_path)
     }
     anyhow::Ok(())
 }
@@ -366,8 +370,12 @@ where
 
         if !exists {
             match fs::remove_file(&pth).await {
-                Ok(()) => debug!("File deleted successfully: {}", pth.display()),
-                Err(e) => eprintln!("Failed to delete file: {}. Error: {}", pth.display(), e),
+                Ok(()) => debug!("Preview cache deleted successfully: {}", pth.display()),
+                Err(e) => eprintln!(
+                    "Failed to delete preview cache: {}. Error: {}",
+                    pth.display(),
+                    e
+                ),
             }
         }
     }

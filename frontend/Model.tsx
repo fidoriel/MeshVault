@@ -21,6 +21,7 @@ import { AspectRatio } from "./components/ui/aspect-ratio";
 import { Dialog, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from "./components/ui/dialog";
 import { DialogHeader } from "./components/ui/dialog";
 import ModelViewer from "./ModelViewer";
+import { useToast } from "./hooks/use-toast";
 
 function OptionsDropdownMenu() {
     return (
@@ -133,7 +134,9 @@ function ImageGallery({ model }: { model: DetailedModelResponse }) {
     );
 }
 
-function InfoCard({ model }: { model: DetailedModelResponse }) {
+function InfoCard({ model, refresh }: { model: DetailedModelResponse; refresh: () => void }) {
+    const [loadingRefresh, setLoadingRefresh] = useState<boolean>(false);
+
     return (
         <div className="w-full max-w-lg px-1">
             <div className="flex justify-between items-start mb-6">
@@ -173,8 +176,18 @@ function InfoCard({ model }: { model: DetailedModelResponse }) {
                     <Button variant="outline" className="w-full">
                         <Heart className="h-5 w-5" />
                     </Button>
-                    <Button variant="outline" className="w-full">
-                        <RefreshCcw className="h-5 w-5" />
+                    <Button
+                        variant="outline"
+                        className="w-full"
+                        size="icon"
+                        onClick={() => {
+                            setLoadingRefresh(true);
+                            refresh();
+                            setLoadingRefresh(false);
+                        }}
+                        disabled={loadingRefresh}
+                    >
+                        <RefreshCcw className={loadingRefresh ? "spin-left h-5 w-5" : "h-5 w-5"} />
                     </Button>
                     <Button variant="outline" className="w-full">
                         <Bookmark className="h-5 w-5" />
@@ -293,6 +306,7 @@ function Model() {
     const { slug } = useParams();
 
     const [model, setModel] = useState<DetailedModelResponse>();
+    const { toast } = useToast();
 
     async function getModels() {
         fetch(BACKEND_BASE_URL + `/api/model/${slug}`, {
@@ -300,8 +314,36 @@ function Model() {
         })
             .then((response) => {
                 if (!response.ok) {
-                    throw new Error("Network response was not ok");
+                    toast({
+                        title: "Loading Failed",
+                        description: `Loading '${model?.name}' failed`,
+                    });
                 }
+                return response.json();
+            })
+            .then((response_models: DetailedModelResponse) => {
+                setModel(response_models);
+            })
+            .catch((error) => {
+                console.error("Fetch error:", error);
+            });
+    }
+
+    async function refresh() {
+        fetch(BACKEND_BASE_URL + `/api/model/${slug}/refresh`, {
+            method: "GET",
+        })
+            .then((response) => {
+                if (!response.ok) {
+                    toast({
+                        title: "Refresh Failed",
+                        description: `Refreshing '${model?.name}' failed`,
+                    });
+                }
+                toast({
+                    title: "Refresh Successful",
+                    description: `Refreshing '${model?.name}' successful`,
+                });
                 return response.json();
             })
             .then((response_models: DetailedModelResponse) => {
@@ -325,7 +367,7 @@ function Model() {
                             <ImageGallery model={model} />
                         </div>
                         <div className="w-full lg:w-2/5">
-                            <InfoCard model={model} />
+                            <InfoCard model={model} refresh={refresh} />
                         </div>
                     </div>
                     <Description model={model} />

@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use crate::parse_library::{add_or_update_model, render_preview};
+use crate::parse_library::{add_or_update_model, clean_file_system, render_preview};
 use crate::schema::{files3d, models3d};
 use crate::Config;
 use anyhow::{Error, Result};
@@ -114,6 +114,8 @@ impl Model3D {
     {
         add_or_update_model(config, connection, &self.absolute_path(&config)).await?;
         render_preview(&config, connection, &self).await?;
+        let files = self.get_files3d(connection).await?;
+        clean_file_system(&config, connection, files).await?;
 
         anyhow::Ok(())
     }
