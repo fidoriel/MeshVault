@@ -2,12 +2,17 @@ use crate::schema::{files3d, models3d};
 use crate::types::ModelPackV0_1;
 use crate::types::{File3D, Model3D, NewFile3D, NewModel3D};
 use crate::Config;
+use anyhow::{Error, Result};
 use chrono::Local;
+use chrono::NaiveDateTime;
+use diesel::prelude::*;
 use diesel::prelude::*;
 use diesel::SqliteConnection;
 use diesel_async::pooled_connection::bb8::Pool;
 use diesel_async::sync_connection_wrapper::SyncConnectionWrapper;
+use diesel_async::AsyncConnection;
 use diesel_async::RunQueryDsl;
+use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::panic;
 use std::path::{Path, PathBuf};
@@ -299,6 +304,20 @@ pub async fn refresh_library(
     }
 
     // delete old cache images
+    clean_cache(config, &mut connection).await?;
+
+    info!(
+        "Finished lib scan at {}",
+        Local::now().format("%Y-%m-%d %H:%M:%S")
+    );
+
+    Ok(())
+}
+
+pub async fn clean_cache<Conn>(config: Config, connection: &mut Conn) -> anyhow::Result<()>
+where
+    Conn: AsyncConnection<Backend = diesel::sqlite::Sqlite>,
+{
     let mut preview_cache_dir = fs::read_dir(&config.preview_cache_dir).await.unwrap();
 
     while let Some(entry) = preview_cache_dir.next_entry().await? {
@@ -312,7 +331,7 @@ pub async fn refresh_library(
 
         let exists = files3d::dsl::files3d
             .filter(files3d::dsl::preview_image.eq(&file_name))
-            .first::<File3D>(&mut connection)
+            .first::<File3D>(connection)
             .await
             .is_ok();
 
@@ -323,11 +342,6 @@ pub async fn refresh_library(
             }
         }
     }
-
-    info!(
-        "Finished lib scan at {}",
-        Local::now().format("%Y-%m-%d %H:%M:%S")
-    );
 
     Ok(())
 }
