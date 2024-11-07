@@ -288,7 +288,7 @@ where
         }
 
         if let Some(extension) = file_pth.extension() {
-            if !mesh_files.contains(&extension.to_str().unwrap()) {
+            if !mesh_files.contains(&extension.to_str().unwrap().to_lowercase().as_str()) {
                 continue;
             }
         }
