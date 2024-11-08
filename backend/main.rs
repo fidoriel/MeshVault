@@ -139,6 +139,23 @@ async fn refresh_model(
     (StatusCode::OK, Json(response))
 }
 
+async fn delete_model(
+    State(state): State<AppState>,
+    Path(slug): Path<String>,
+) -> impl IntoResponse {
+    let mut connection = state.pool.get().await.unwrap();
+
+    let result = models3d::dsl::models3d
+        .filter(models3d::dsl::name.eq(slug))
+        .first::<Model3D>(&mut connection)
+        .await
+        .unwrap();
+    match result.delete(&state.config, &mut connection).await {
+        Ok(_) => StatusCode::OK,
+        Err(_) => StatusCode::INTERNAL_SERVER_ERROR,
+    }
+}
+
 async fn handle_refresh(State(state): State<AppState>) -> impl IntoResponse {
     parse_library::refresh_library(state.pool, state.config.clone())
         .await
@@ -237,6 +254,7 @@ async fn main() {
         .route("/models/list", get(list_models))
         .route("/model/:slug", get(get_model_by_slug))
         .route("/model/:slug/refresh", get(refresh_model))
+        .route("/model/:slug/delete", post(delete_model))
         .route("/download/:folder", get(handle_zip_download))
         .route("/upload", post(upload::handle_upload))
         .layer(DefaultBodyLimit::disable())

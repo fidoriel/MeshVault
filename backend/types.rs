@@ -8,6 +8,7 @@ use chrono::NaiveDateTime;
 use diesel::prelude::*;
 use diesel_async::{AsyncConnection, RunQueryDsl};
 use serde::{Deserialize, Serialize};
+use tracing::debug;
 use typeshare::typeshare;
 
 fn comma_separated_to_pathbuf_vec(input: &str) -> Vec<PathBuf> {
@@ -113,6 +114,20 @@ impl Model3D {
         let files = self.get_files3d(connection).await?;
         clean_file_system(&config, connection, files).await?;
         load_files_and_preview(&config, connection, &self).await?;
+
+        anyhow::Ok(())
+    }
+
+    pub async fn delete<Conn>(&self, config: &Config, connection: &mut Conn) -> anyhow::Result<()>
+    where
+        Conn: AsyncConnection<Backend = diesel::sqlite::Sqlite>,
+    {
+        fs_extra::dir::remove(self.absolute_path(config));
+        debug!("Deleted {}", self.absolute_path(config).display());
+        diesel::delete(models3d::dsl::models3d.filter(models3d::dsl::id.eq(self.id)))
+            .execute(connection)
+            .await
+            .unwrap();
 
         anyhow::Ok(())
     }

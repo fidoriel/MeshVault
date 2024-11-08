@@ -3,7 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Download, Heart, MoreVertical, RefreshCcw, Bookmark } from "lucide-react";
 
 import { useState, useEffect, useRef } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { DetailedFileResponse, DetailedModelResponse } from "./bindings";
 import { BACKEND_BASE_URL } from "./lib/api";
 import { saveAs } from "file-saver";
@@ -23,21 +23,80 @@ import { DialogHeader } from "./components/ui/dialog";
 import ModelViewer from "./ModelViewer";
 import { useToast } from "./hooks/use-toast";
 
-function OptionsDropdownMenu() {
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+
+function OptionsDropdownMenu({ model }: { model: DetailedModelResponse }) {
+    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+    const { toast } = useToast();
+    const navigate = useNavigate();
+
+    async function deleteModel() {
+        fetch(BACKEND_BASE_URL + `/api/model/${model.name}/delete`, {
+            method: "POST",
+        })
+            .then((response) => {
+                if (!response.ok) {
+                    toast({
+                        title: `Deleting model "${model.title}" failed`,
+                        description: `An unknown server error occurred`,
+                    });
+                }
+                toast({
+                    title: `Deleting model "${model.title}" successful`,
+                    description: `It is now permanently removed`,
+                });
+                navigate("/");
+            })
+            .catch((error) => {
+                console.error("Fetch error:", error);
+            });
+    }
+
     return (
-        <DropdownMenu>
-            <DropdownMenuTrigger>
-                <MoreVertical className="h-5 w-5" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-                <DropdownMenuLabel>Model Options</DropdownMenuLabel>
-                <DropdownMenuSeparator></DropdownMenuSeparator>
-                <DropdownMenuItem>Edit</DropdownMenuItem>
-                <DropdownMenuItem>Delete</DropdownMenuItem>
-                <DropdownMenuItem>Compress</DropdownMenuItem>
-                <DropdownMenuItem>Merge</DropdownMenuItem>
-            </DropdownMenuContent>
-        </DropdownMenu>
+        <>
+            <DropdownMenu>
+                <DropdownMenuTrigger>
+                    <MoreVertical className="h-5 w-5" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                    <DropdownMenuLabel>Model Options</DropdownMenuLabel>
+                    <DropdownMenuSeparator></DropdownMenuSeparator>
+                    {/* <DropdownMenuItem>Edit</DropdownMenuItem> */}
+                    <DropdownMenuItem onClick={() => setIsDeleteDialogOpen(true)}>Delete</DropdownMenuItem>
+                    {/* <DropdownMenuItem>Compress</DropdownMenuItem> */}
+                </DropdownMenuContent>
+            </DropdownMenu>
+
+            <AlertDialog open={isDeleteDialogOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Are you absolutely sure to delete "{model.title}"?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This action cannot be undone. This will permanently delete "{model.title}" from database and
+                            filesystem.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel onClick={() => setIsDeleteDialogOpen(false)}>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={deleteModel}
+                            className="bg-destructive hover:bg-destructive/80 text-destructive-foreground"
+                        >
+                            Delete
+                        </AlertDialogAction>{" "}
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+        </>
     );
 }
 
@@ -141,7 +200,7 @@ function InfoCard({ model, refresh }: { model: DetailedModelResponse; refresh: (
                 <div className="space-y-2">
                     <h1 className="text-2xl font-bold">{model.title}</h1>
                 </div>
-                <OptionsDropdownMenu />
+                <OptionsDropdownMenu model={model} />
             </div>
 
             <div className="mb-6">
