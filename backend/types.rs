@@ -261,6 +261,7 @@ pub struct File3D {
     pub preview_image: Option<String>,
     pub date_added: Option<NaiveDateTime>,
     pub file_hash: Option<String>,
+    pub file_size_bytes: i32,
 }
 
 impl File3D {
@@ -273,6 +274,13 @@ impl File3D {
             .first::<Model3D>(connection)
             .await
             .unwrap()
+    }
+
+    pub async fn get_file_name(&self) -> Option<String> {
+        std::path::Path::new(&self.file_path)
+            .file_name()
+            .and_then(|name| name.to_str())
+            .map(|name| name.to_string())
     }
 
     pub async fn get_file_path<Conn>(&self, connection: &mut Conn, config: &Config) -> PathBuf
@@ -312,17 +320,20 @@ pub struct NewFile3D {
     pub file_path: String,
     pub preview_image: Option<String>,
     pub file_hash: Option<String>,
+    pub file_size_bytes: i32,
 }
 
 #[typeshare]
 #[derive(Debug, Serialize, Deserialize)]
 pub struct DetailedFileResponse {
     pub id: i32,
+    pub name: String,
     pub model_id: i32,
     pub file_path: String,
     pub preview_image: Option<String>,
     pub date_added: Option<NaiveDateTime>,
     pub file_hash: Option<String>,
+    pub file_size: String,
 }
 
 impl DetailedFileResponse {
@@ -334,11 +345,13 @@ impl DetailedFileResponse {
 
         Self {
             id: file.id,
+            name: file.get_file_name().await.unwrap(),
             model_id: file.model_id,
             file_path: url_file_path,
             preview_image: file.get_url_preview_path(config),
             date_added: file.date_added,
             file_hash: file.file_hash.clone(),
+            file_size: human_bytes::human_bytes(file.file_size_bytes as f64),
         }
     }
 }

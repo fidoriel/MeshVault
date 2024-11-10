@@ -343,6 +343,7 @@ where
                 .to_string(),
             preview_image,
             file_hash: Some(hash),
+            file_size_bytes: fs::metadata(file_pth).await?.len() as i32,
         };
         diesel::insert_into(files3d::table)
             .values(&new_file)

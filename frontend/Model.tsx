@@ -287,9 +287,10 @@ function File({ file }: { file: DetailedFileResponse }) {
                 <div className="flex items-center gap-4">
                     <img src={BACKEND_BASE_URL + file.preview_image} className="h-24" />
                     <div>
-                        <h3 className="font-medium">{file.file_path}</h3>
+                        <h3 className="font-medium">{file.name}</h3>
                         <p className="text-sm text-gray-500">
-                            {"2 Mb"} | {String(file.date_added) || ""} | {file.file_hash || ""}
+                            {file.file_size} | {file.date_added ? new Date(file.date_added).toLocaleString() : ""} |{" "}
+                            {file.file_hash || ""}
                         </p>
                     </div>
                 </div>
@@ -302,9 +303,7 @@ function File({ file }: { file: DetailedFileResponse }) {
 
                         <DialogContent className="w-full h-full max-w-[90vw] max-h-[90vh] flex flex-col">
                             <DialogHeader>
-                                <DialogTitle className="large-text">
-                                    3D Viewer: {file.file_path.split("/").pop()}
-                                </DialogTitle>
+                                <DialogTitle className="large-text">3D Viewer: {file.name}</DialogTitle>
                                 <DialogDescription className="large-text">
                                     Pan with Right Mouse Button, Rotate with Left Mouse Button and Zoom with Scroll
                                     Wheel
@@ -318,7 +317,7 @@ function File({ file }: { file: DetailedFileResponse }) {
                         variant="outline"
                         className="flex items-center gap-2"
                         onClick={() => {
-                            saveAs(BACKEND_BASE_URL + file.file_path, file.file_path.split("/").pop());
+                            saveAs(BACKEND_BASE_URL + file.file_path, file.name);
                         }}
                     >
                         <Download size={16} />

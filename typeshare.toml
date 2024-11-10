@@ -1,2 +1,2 @@
 [typescript.type_mappings]
-NaiveDateTime = "Date"
+NaiveDateTime = "string"

@@ -8,6 +8,7 @@ diesel::table! {
         preview_image -> Nullable<Text>,
         date_added -> Nullable<Timestamp>,
         file_hash -> Nullable<Text>,
+        file_size_bytes -> Integer,
     }
 }
 
