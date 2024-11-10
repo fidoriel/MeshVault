@@ -55,6 +55,10 @@ pub async fn get_modelpack_meta(pth: &PathBuf) -> anyhow::Result<ModelPackV0_1, 
     let mut json_pth = pth.clone();
     json_pth.push("modelpack.json");
 
+    if !json_pth.exists() {
+        return Err(anyhow::Error::msg("File does not exist"));
+    }
+
     let data = fs::read_to_string(json_pth).await?;
     let model_pack: ModelPackV0_1 = serde_json::from_str(&data)?;
 
@@ -208,8 +212,6 @@ pub async fn add_or_update_model<Conn>(
 where
     Conn: AsyncConnection<Backend = diesel::sqlite::Sqlite>,
 {
-    let model_pack_meta = get_modelpack_meta(&dir).await.unwrap();
-
     let relative_dir = pathdiff::diff_paths(&dir, &config.libraries_path).unwrap();
 
     let result: Option<Model3D> = models3d::dsl::models3d
@@ -220,6 +222,16 @@ where
 
     let mut image_dir = dir.clone();
     image_dir.push("images");
+
+    let model_pack_meta = match get_modelpack_meta(&dir).await {
+        Ok(meta) => meta,
+        Err(_) => {
+            if let Some(existing_model) = result {
+                existing_model.delete(&config, connection).await?;
+            }
+            return Err(anyhow::Error::msg("Failed to get model pack meta"));
+        }
+    };
 
     let new_object: NewModel3D = NewModel3D::from_model_pack_v0_1(
         &model_pack_meta,
@@ -241,7 +253,7 @@ where
             .execute(connection)
             .await
             .unwrap();
-        debug!("Updated {:?}", new_object.folder_path);
+        debug!("Scanning {:?}", new_object.folder_path);
         anyhow::Ok(existing_model)
     } else {
         diesel::insert_into(models3d::table)

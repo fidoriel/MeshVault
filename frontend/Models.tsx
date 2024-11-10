@@ -44,15 +44,16 @@ function ModelCard({ model }: { model: ModelResponse }) {
         <Card className="w-full bg-background border-border hover:shadow-lg transition-shadow duration-200">
             <CardContent className="p-0 relative">
                 {/* <Badge className="absolute top-2 left-2 bg-red-500 text-white">Badge</Badge> */}
-                <img src={image || ""} alt={model.title} className="w-full h-48 object-cover rounded-t-lg" />
+                <Link to={detail_link}>
+                    <img src={image || ""} alt={model.title} className="w-full h-48 object-cover rounded-t-lg" />
+                </Link>
             </CardContent>
             <div className="p-3">
                 <div className="flex items-center gap-2 mb-2">
                     <span className="text-sm text-muted-foreground">{model.author}</span>
                 </div>
                 <Link to={detail_link}>
-                    {" "}
-                    <h3 className="text-sm text-foreground mb-3">{model.title}</h3>{" "}
+                    <h3 className="text-sm text-foreground mb-3">{model.title}</h3>
                 </Link>
                 <div className="flex items-center justify-between text-muted-foreground text-sm">
                     <div className="flex items-center gap-4">

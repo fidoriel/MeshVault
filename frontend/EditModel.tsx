@@ -1,6 +1,5 @@
-import { useCallback, useState } from "react";
-import { useDropzone } from "react-dropzone";
-import { Upload, X, Loader2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { X, Loader2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,84 +8,65 @@ import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { BACKEND_BASE_URL } from "./lib/api";
 import { useToast } from "./hooks/use-toast";
-import { UploadResponse } from "./bindings";
-import { useNavigate } from "react-router-dom";
+import { DetailedModelResponse, ModelPackV0_1, UploadResponse } from "./bindings";
+import { useNavigate, useParams } from "react-router-dom";
+import Dropzone from "./Dropzone";
 
-interface ModelPackV0_1 {
-    version: string;
-    title: string;
-    author: string;
-    origin: string;
-    license: string;
-}
-
-function UploadEditModel() {
-    const [modelData, setModelData] = useState<ModelPackV0_1>({
-        version: "0.1",
-        title: "",
-        author: "",
-        origin: "",
-        license: "",
-    });
+function EditModel() {
+    const [modelData, setModelData] = useState<ModelPackV0_1>();
+    const { slug } = useParams();
     const [description, setDescription] = useState("");
     const [cadFiles, setCadFiles] = useState<File[]>([]);
-    const [threedFiles, setThreedFiles] = useState<File[]>([]);
+    const [threemfFiles, setthreemfFiles] = useState<File[]>([]);
     const [imgFiles, setImgFiles] = useState<File[]>([]);
     const [isUploading, setIsUploading] = useState(false);
     const [error, setError] = useState("");
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
     const { toast } = useToast();
-
-    const meshFileFormats = [".obj", ".stl", ".3mf"];
-    const cadFileFormats = [".step", ".stp", ".f3d", ".scad", ".igs", ".iges"];
-    const imageFileFormats = [".jpg", ".jpeg", ".png", ".gif", ".bmp", ".tiff", ".webp"];
-
     const navigate = useNavigate();
 
-    const isValidFileType = (file: File) => {
-        const ext = file.name.toLowerCase().substring(file.name.lastIndexOf("."));
-        return meshFileFormats.includes(ext) || cadFileFormats.includes(ext) || imageFileFormats.includes(ext);
-    };
+    async function getModel() {
+        fetch(BACKEND_BASE_URL + `/api/model/${slug}`, {
+            method: "GET",
+        })
+            .then((response) => {
+                if (!response.ok) {
+                    toast({
+                        title: "Loading Failed",
+                        description: `Loading '${slug}' failed`,
+                    });
+                    navigate("/");
+                }
+                return response.json();
+            })
+            .then((model: DetailedModelResponse) => {
+                setModelData({
+                    version: "0.1",
+                    title: model.title,
+                    author: model.author || "",
+                    origin: model.origin || "",
+                    license: model.license || "",
+                });
+            })
+            .catch((error) => {
+                console.error("Fetch error:", error);
+            });
+    }
 
-    const onDrop = useCallback((acceptedFiles: File[]) => {
-        setError("");
-
-        // Filter out any invalid file types
-        const validFiles = acceptedFiles.filter((file) => isValidFileType(file));
-
-        if (validFiles.length !== acceptedFiles.length) {
-            setError("Some files were skipped due to unsupported file types");
-        }
-
-        // Process valid files
-        const newCadFiles: File[] = [];
-        const newThreedFiles: File[] = [];
-        const newImgFiles: File[] = [];
-
-        validFiles.forEach((file) => {
-            const ext = file.name.toLowerCase().substring(file.name.lastIndexOf("."));
-
-            if (meshFileFormats.includes(ext)) {
-                newThreedFiles.push(file);
-            } else if (cadFileFormats.includes(ext)) {
-                newCadFiles.push(file);
-            } else if (imageFileFormats.includes(ext)) {
-                newImgFiles.push(file);
-            }
-        });
-
-        // Update state with new files while preserving existing ones
+    const handleFilesDrop = ({
+        cadFiles: newCadFiles,
+        threemfFiles: newthreemfFiles,
+        imgFiles: newImgFiles,
+    }: {
+        cadFiles: File[];
+        threemfFiles: File[];
+        imgFiles: File[];
+    }) => {
         setCadFiles((prev) => [...prev, ...newCadFiles]);
-        setThreedFiles((prev) => [...prev, ...newThreedFiles]);
+        setthreemfFiles((prev) => [...prev, ...newthreemfFiles]);
         setImgFiles((prev) => [...prev, ...newImgFiles]);
-    }, []);
-
-    const { getRootProps, getInputProps, isDragActive } = useDropzone({
-        onDrop,
-        multiple: true,
-        maxSize: 1024 * 1024 * 1024, // 1GB
-    });
+    };
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -94,14 +74,8 @@ function UploadEditModel() {
         setError("");
         setErrorMessage(null);
 
-        if (!modelData.title) {
+        if (!modelData?.title) {
             setError("Model name is required");
-            setIsUploading(false);
-            return;
-        }
-
-        if (threedFiles.length === 0 && cadFiles.length === 0) {
-            setError("At least one 3D or CAD file is required");
             setIsUploading(false);
             return;
         }
@@ -119,7 +93,7 @@ function UploadEditModel() {
             });
             formData.append("README.md", descriptionBlob, "README.md");
 
-            threedFiles.forEach((file) => {
+            threemfFiles.forEach((file) => {
                 formData.append(`mesh_files`, file);
             });
 
@@ -131,7 +105,7 @@ function UploadEditModel() {
                 formData.append(`image_files`, file);
             });
 
-            const response = await fetch(`${BACKEND_BASE_URL}/api/upload`, {
+            const response = await fetch(`${BACKEND_BASE_URL}/api/model/${slug}/update`, {
                 method: "POST",
                 body: formData,
             });
@@ -148,19 +122,6 @@ function UploadEditModel() {
                 description: result.message,
             });
 
-            // Reset form after successful upload
-            setModelData({
-                version: "0.1",
-                title: "",
-                author: "",
-                origin: "",
-                license: "",
-            });
-            setDescription("");
-            setCadFiles([]);
-            setThreedFiles([]);
-            setImgFiles([]);
-
             navigate(`/model/${result.slug}`);
         } catch (err) {
             setError(err instanceof Error ? err.message : "Upload failed");
@@ -174,17 +135,21 @@ function UploadEditModel() {
         const { id, value } = e.target;
         setModelData((prev) => ({
             ...prev,
-            [id === "modelName" ? "title" : id]: value,
+            version: prev?.version || "0.1",
+            title: id === "modelName" ? value : prev?.title || "",
+            author: id === "author" ? value : prev?.author || "",
+            origin: id === "origin" ? value : prev?.origin || "",
+            license: id === "license" ? value : prev?.license || "",
         }));
     };
 
-    const removeFile = (fileType: "cad" | "threed" | "img", index: number) => {
+    const removeFile = (fileType: "cad" | "threemf" | "img", index: number) => {
         switch (fileType) {
             case "cad":
                 setCadFiles((prev) => prev.filter((_, i) => i !== index));
                 break;
-            case "threed":
-                setThreedFiles((prev) => prev.filter((_, i) => i !== index));
+            case "threemf":
+                setthreemfFiles((prev) => prev.filter((_, i) => i !== index));
                 break;
             case "img":
                 setImgFiles((prev) => prev.filter((_, i) => i !== index));
@@ -192,11 +157,15 @@ function UploadEditModel() {
         }
     };
 
+    useEffect(() => {
+        getModel();
+    }, [slug]);
+
     return (
         <div className="min-h-screen bg-background text-foreground">
             <div className="max-w-screen-2xl mx-auto p-3">
                 <div className="flex items-center justify-between mb-6">
-                    <h1 className="text-3xl font-bold">Upload new Model</h1>
+                    <h1 className="text-3xl font-bold">Edit Model: {modelData?.title}</h1>
                 </div>
 
                 {errorMessage && (
@@ -212,7 +181,7 @@ function UploadEditModel() {
                             <Label htmlFor="modelName">Model Name</Label>
                             <Input
                                 id="modelName"
-                                value={modelData.title}
+                                value={modelData?.title}
                                 onChange={handleInputChange}
                                 placeholder="Enter model name"
                                 required
@@ -223,7 +192,7 @@ function UploadEditModel() {
                             <Label htmlFor="author">Author Name</Label>
                             <Input
                                 id="author"
-                                value={modelData.author}
+                                value={modelData?.author}
                                 onChange={handleInputChange}
                                 placeholder="Enter author name"
                             />
@@ -233,7 +202,7 @@ function UploadEditModel() {
                             <Label htmlFor="origin">Origin</Label>
                             <Input
                                 id="origin"
-                                value={modelData.origin}
+                                value={modelData?.origin}
                                 onChange={handleInputChange}
                                 placeholder="Enter Origin URL"
                             />
@@ -244,7 +213,7 @@ function UploadEditModel() {
                             <Input
                                 id="license"
                                 list="license-suggestions"
-                                value={modelData.license}
+                                value={modelData?.license}
                                 onChange={handleInputChange}
                                 placeholder="Enter License Information"
                             />
@@ -279,30 +248,11 @@ function UploadEditModel() {
                             />
                         </div>
 
-                        <div
-                            {...getRootProps()}
-                            className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors
-                                ${isDragActive ? "border-primary bg-primary/5" : "border-border"}`}
-                        >
-                            <input {...getInputProps()} />
-                            <Upload className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-                            <div className="space-y-2">
-                                <p className="text-sm font-medium">
-                                    {isDragActive ? "Drop the files here" : "Drag and drop your files here"}
-                                </p>
-                                <p className="text-xs text-muted-foreground">
-                                    Mesh files: {meshFileFormats.join(", ")}
-                                </p>
-                                <p className="text-xs text-muted-foreground">CAD files: {cadFileFormats.join(", ")}</p>
-                                <p className="text-xs text-muted-foreground">
-                                    Image files: {imageFileFormats.join(", ")}
-                                </p>
-                            </div>
-                        </div>
+                        <Dropzone onFilesDrop={handleFilesDrop} onError={setError} />
 
                         <div className="space-y-4">
                             {[
-                                { title: "3D Files", files: threedFiles, type: "threed" as const },
+                                { title: "3D Files", files: threemfFiles, type: "threemf" as const },
                                 { title: "CAD Files", files: cadFiles, type: "cad" as const },
                                 { title: "Image Files", files: imgFiles, type: "img" as const },
                             ].map(({ title, files, type }) => (
@@ -337,20 +287,21 @@ function UploadEditModel() {
                             </Alert>
                         )}
 
-                        <Button
-                            type="submit"
-                            className="w-full"
-                            disabled={isUploading || !modelData.title || (!threedFiles.length && !cadFiles.length)}
-                        >
-                            {isUploading ? (
-                                <>
-                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                    Uploading...
-                                </>
-                            ) : (
-                                "Upload Model"
-                            )}
-                        </Button>
+                        <div className="flex space-x-4">
+                            <Button type="button" variant={"outline"} className="w-full" disabled={isUploading}>
+                                Abort
+                            </Button>
+                            <Button type="submit" className="w-full" disabled={isUploading || !modelData?.title}>
+                                {isUploading ? (
+                                    <>
+                                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                        Uploading...
+                                    </>
+                                ) : (
+                                    "Update Model"
+                                )}
+                            </Button>
+                        </div>
                     </form>
                 </Card>
             </div>
@@ -358,4 +309,4 @@ function UploadEditModel() {
     );
 }
 
-export default UploadEditModel;
+export default EditModel;

@@ -70,9 +70,8 @@ function OptionsDropdownMenu({ model }: { model: DetailedModelResponse }) {
                 <DropdownMenuContent>
                     <DropdownMenuLabel>Model Options</DropdownMenuLabel>
                     <DropdownMenuSeparator></DropdownMenuSeparator>
-                    {/* <DropdownMenuItem>Edit</DropdownMenuItem> */}
+                    <DropdownMenuItem onClick={() => navigate(`/model/${model.name}/edit`)}>Edit</DropdownMenuItem>
                     <DropdownMenuItem onClick={() => setIsDeleteDialogOpen(true)}>Delete</DropdownMenuItem>
-                    {/* <DropdownMenuItem>Compress</DropdownMenuItem> */}
                 </DropdownMenuContent>
             </DropdownMenu>
 
@@ -280,56 +279,115 @@ function Description({ model }: { model: DetailedModelResponse }) {
     );
 }
 
-function File({ file }: { file: DetailedFileResponse }) {
+function File({ file, reload: reload }: { file: DetailedFileResponse; reload: () => void }) {
+    const { toast } = useToast();
+    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+
+    async function deleteFile() {
+        fetch(BACKEND_BASE_URL + `/api/file/${file.id}/delete`, {
+            method: "POST",
+        })
+            .then((response) => {
+                if (!response.ok) {
+                    toast({
+                        title: `Deleting file "${file.name}" failed`,
+                        description: `An unknown server error occurred`,
+                    });
+                }
+                toast({
+                    title: `Deleting file "${file.name}" successful`,
+                    description: `It is now permanently removed`,
+                });
+                reload();
+            })
+            .catch((error) => {
+                console.error("Fetch error:", error);
+            });
+    }
+
     return (
-        <Card className="p-4">
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                    <img src={BACKEND_BASE_URL + file.preview_image} className="h-24" />
-                    <div>
-                        <h3 className="font-medium">{file.name}</h3>
-                        <p className="text-sm text-gray-500">
-                            {file.file_size} | {file.date_added ? new Date(file.date_added).toLocaleString() : ""} |{" "}
-                            {file.file_hash || ""}
-                        </p>
+        <>
+            <Card className="p-4">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                        <img src={BACKEND_BASE_URL + file.preview_image} className="h-24" />
+                        <div>
+                            <h3 className="font-medium">{file.name}</h3>
+                            <p className="text-sm text-gray-500">
+                                {file.file_size} | {file.date_added ? new Date(file.date_added).toLocaleString() : ""} |{" "}
+                                {file.file_hash || ""}
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="flex gap-2">
+                        <Dialog>
+                            <DialogTrigger asChild>
+                                <Button variant="outline">3D Viewer</Button>
+                            </DialogTrigger>
+
+                            <DialogContent className="w-full h-full max-w-[90vw] max-h-[90vh] flex flex-col">
+                                <DialogHeader>
+                                    <DialogTitle className="large-text">3D Viewer: {file.name}</DialogTitle>
+                                    <DialogDescription className="large-text">
+                                        Pan with Right Mouse Button, Rotate with Left Mouse Button and Zoom with Scroll
+                                        Wheel
+                                    </DialogDescription>
+                                </DialogHeader>
+                                <ModelViewer file_path={file.file_path} />
+                            </DialogContent>
+                        </Dialog>
+
+                        <Button
+                            variant="outline"
+                            className="flex items-center gap-2"
+                            onClick={() => {
+                                saveAs(BACKEND_BASE_URL + file.file_path, file.name);
+                            }}
+                        >
+                            <Download size={16} />
+                            Download
+                        </Button>
+
+                        <DropdownMenu>
+                            <DropdownMenuTrigger>
+                                <MoreVertical className="h-5 w-5" />
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent>
+                                <DropdownMenuLabel>File Options</DropdownMenuLabel>
+                                <DropdownMenuSeparator></DropdownMenuSeparator>
+                                <DropdownMenuItem onClick={() => setIsDeleteDialogOpen(true)}>Delete</DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
                     </div>
                 </div>
+            </Card>
 
-                <div className="flex gap-2">
-                    <Dialog>
-                        <DialogTrigger asChild>
-                            <Button variant="outline">3D Viewer</Button>
-                        </DialogTrigger>
-
-                        <DialogContent className="w-full h-full max-w-[90vw] max-h-[90vh] flex flex-col">
-                            <DialogHeader>
-                                <DialogTitle className="large-text">3D Viewer: {file.name}</DialogTitle>
-                                <DialogDescription className="large-text">
-                                    Pan with Right Mouse Button, Rotate with Left Mouse Button and Zoom with Scroll
-                                    Wheel
-                                </DialogDescription>
-                            </DialogHeader>
-                            <ModelViewer file_path={file.file_path} />
-                        </DialogContent>
-                    </Dialog>
-
-                    <Button
-                        variant="outline"
-                        className="flex items-center gap-2"
-                        onClick={() => {
-                            saveAs(BACKEND_BASE_URL + file.file_path, file.name);
-                        }}
-                    >
-                        <Download size={16} />
-                        Download
-                    </Button>
-                </div>
-            </div>
-        </Card>
+            <AlertDialog open={isDeleteDialogOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Are you absolutely sure to delete "{file.name}"?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This action cannot be undone. This will permanently delete "{file.name}" from database and
+                            filesystem.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel onClick={() => setIsDeleteDialogOpen(false)}>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={deleteFile}
+                            className="bg-destructive hover:bg-destructive/80 text-destructive-foreground"
+                        >
+                            Delete
+                        </AlertDialogAction>{" "}
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+        </>
     );
 }
 
-function FileList({ model }: { model: DetailedModelResponse }) {
+function FileList({ model, reload: reload }: { model: DetailedModelResponse; reload: () => void }) {
     const files = model.files;
 
     return (
@@ -348,7 +406,7 @@ function FileList({ model }: { model: DetailedModelResponse }) {
 
             <div className="space-y-4">
                 {files.map((file, index) => (
-                    <File file={file} key={index} />
+                    <File file={file} key={index} reload={reload} />
                 ))}
             </div>
         </div>
@@ -361,7 +419,7 @@ function Model() {
     const [model, setModel] = useState<DetailedModelResponse>();
     const { toast } = useToast();
 
-    async function getModels() {
+    async function getModel() {
         fetch(BACKEND_BASE_URL + `/api/model/${slug}`, {
             method: "GET",
         })
@@ -408,7 +466,7 @@ function Model() {
     }
 
     useEffect(() => {
-        getModels();
+        getModel();
     }, [slug]);
 
     return (
@@ -424,7 +482,7 @@ function Model() {
                         </div>
                     </div>
                     <Description model={model} />
-                    <FileList model={model} />
+                    <FileList model={model} reload={getModel} />
                 </div>
             )}
         </>

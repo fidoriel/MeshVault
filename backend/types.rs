@@ -8,7 +8,7 @@ use chrono::NaiveDateTime;
 use diesel::prelude::*;
 use diesel_async::{AsyncConnection, RunQueryDsl};
 use serde::{Deserialize, Serialize};
-use tracing::debug;
+use tracing::{debug, error};
 use typeshare::typeshare;
 
 fn comma_separated_to_pathbuf_vec(input: &str) -> Vec<PathBuf> {
@@ -24,29 +24,6 @@ fn pathbuf_vec_to_comma_separated(paths: Vec<PathBuf>) -> String {
         .map(|path| path.to_string_lossy().into_owned())
         .collect::<Vec<String>>()
         .join(",")
-}
-
-enum MeshFiles {
-    Obj,
-    Stl,
-    Threemf,
-}
-
-enum CadFormats {
-    Step,
-    Stp,
-    F3d,
-    Scad,
-}
-
-enum ImageFormats {
-    Jpg,
-    Jpeg,
-    Png,
-    Gif,
-    Bmp,
-    Tiff,
-    Webp,
 }
 
 #[typeshare]
@@ -310,6 +287,39 @@ impl File3D {
         self.preview_image
             .as_ref()
             .map(|preview_image| format!("{}/{}", config.cache_prefix.clone(), preview_image))
+    }
+
+    pub async fn delete<Conn>(&self, config: &Config, connection: &mut Conn) -> anyhow::Result<()>
+    where
+        Conn: AsyncConnection<Backend = diesel::sqlite::Sqlite>,
+    {
+        let file = self.get_file_path(connection, &config).await;
+        debug!("File path obtained: {:?}", file.display());
+
+        match tokio::fs::remove_file(&file).await {
+            Ok(_) => {
+                debug!("File deleted successfully.");
+            }
+            Err(e) => {
+                debug!("Failed to delete file: {}", e);
+            }
+        }
+
+        debug!("Delete file {:?}", file.display());
+
+        let model = self.get_model(connection).await;
+        debug!("Model obtained, starting scan.");
+
+        match model.scan(&config, connection).await {
+            Ok(_) => {
+                debug!("Scan completed successfully.");
+            }
+            Err(e) => {
+                error!("Scan failed: {}", e);
+            }
+        }
+
+        anyhow::Ok(())
     }
 }
 

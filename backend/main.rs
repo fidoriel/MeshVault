@@ -16,6 +16,7 @@ use diesel_async::sync_connection_wrapper::SyncConnectionWrapper;
 use diesel_async::{AsyncConnection, RunQueryDsl};
 use diesel_migrations::MigrationHarness;
 use diesel_migrations::{embed_migrations, EmbeddedMigrations};
+use schema::files3d::{self};
 use serde_derive::{Deserialize, Serialize};
 use std::path::PathBuf;
 use tower_http::cors::{Any, CorsLayer};
@@ -30,6 +31,7 @@ pub mod stream_dl;
 pub mod types;
 pub mod upload;
 use crate::schema::models3d;
+use crate::types::File3D;
 use crate::types::Model3D;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -156,6 +158,20 @@ async fn delete_model(
     }
 }
 
+async fn delete_file(State(state): State<AppState>, Path(pk): Path<i32>) -> impl IntoResponse {
+    let mut connection = state.pool.get().await.unwrap();
+
+    let result = files3d::dsl::files3d
+        .filter(files3d::dsl::id.eq(pk))
+        .first::<File3D>(&mut connection)
+        .await
+        .unwrap();
+    match result.delete(&state.config, &mut connection).await {
+        Ok(_) => StatusCode::OK,
+        Err(_) => StatusCode::INTERNAL_SERVER_ERROR,
+    }
+}
+
 async fn handle_refresh(State(state): State<AppState>) -> impl IntoResponse {
     parse_library::refresh_library(state.pool, state.config.clone())
         .await
@@ -254,7 +270,9 @@ async fn main() {
         .route("/models/list", get(list_models))
         .route("/model/:slug", get(get_model_by_slug))
         .route("/model/:slug/refresh", get(refresh_model))
+        .route("/model/:slug/update", post(upload::handle_upload_update))
         .route("/model/:slug/delete", post(delete_model))
+        .route("/file/:id/delete", post(delete_file))
         .route("/download/:folder", get(handle_zip_download))
         .route("/upload", post(upload::handle_upload))
         .layer(DefaultBodyLimit::disable())

@@ -1,17 +1,21 @@
+use anyhow::{Context, Ok as anyOk, Result};
 use axum::{extract::Multipart, extract::State, http::StatusCode, Json};
-use diesel::prelude::*;
-use diesel_async::RunQueryDsl;
+use diesel_async::{AsyncConnection, RunQueryDsl};
 use serde_json::{json, Value};
+use std::collections::VecDeque;
 use std::path::{Path, PathBuf};
 use tokio::fs::{self, File};
 use tokio::io::AsyncWriteExt;
-use tracing::{debug, info};
-use tracing_subscriber::field::debug;
+use tracing::{debug, error, info};
 use uuid::Uuid;
+
+use diesel::prelude::*;
 
 use crate::parse_library::{self, add_or_update_model};
 use crate::schema::models3d;
 use crate::types::Model3D;
+
+use crate::Config;
 
 fn cleanup_temp_dir(temp_dir: &PathBuf) {
     debug!("cleaned {}", temp_dir.display());
@@ -40,11 +44,90 @@ fn categorize_file(file_name: &PathBuf) -> &str {
     }
 }
 
+async fn merge_directories(src: &Path, dest: &Path, overwrite: bool) -> Result<()> {
+    if !src.is_dir() || !dest.is_dir() {
+        anyhow::bail!("Both paths must be directories");
+    }
+
+    if !dest.exists() {
+        std::fs::create_dir_all(dest)?;
+    }
+
+    let mut queue = VecDeque::new();
+    queue.push_back((src.to_path_buf(), dest.to_path_buf()));
+
+    while let Some((current_src, current_dest)) = queue.pop_front() {
+        let mut entries = fs::read_dir(&current_src)
+            .await
+            .with_context(|| format!("Failed to read directory: {:?}", current_src))?;
+
+        while let Some(entry) = entries.next_entry().await? {
+            let path = entry.path();
+            let dest_path = current_dest.join(entry.file_name());
+
+            if path.is_dir() {
+                fs::create_dir_all(&dest_path)
+                    .await
+                    .with_context(|| format!("Failed to create directory: {:?}", dest_path))?;
+                queue.push_back((path, dest_path));
+            } else if path.is_file() {
+                if overwrite || !fs::try_exists(&dest_path).await? {
+                    fs::copy(&path, &dest_path).await.with_context(|| {
+                        format!("Failed to copy file from {:?} to {:?}", path, dest_path)
+                    })?;
+                }
+            }
+        }
+    }
+
+    anyOk(())
+}
+
 pub async fn handle_upload(
     State(state): State<crate::AppState>,
     mut multipart: Multipart,
 ) -> Result<Json<Value>, StatusCode> {
-    let mut temp_dir = state.config.upload_cache.clone();
+    let mut connection = state.pool.get().await.unwrap();
+    Ok(
+        handle_upload_internally(&mut connection, &state.config.clone(), multipart, None)
+            .await
+            .unwrap(),
+    )
+}
+
+pub async fn handle_upload_update(
+    State(state): State<crate::AppState>,
+    axum::extract::Path(slug): axum::extract::Path<String>,
+    mut multipart: Multipart,
+) -> Result<Json<Value>, StatusCode> {
+    let mut connection = state.pool.get().await.unwrap();
+
+    let result = models3d::dsl::models3d
+        .filter(models3d::dsl::name.eq(slug))
+        .first::<Model3D>(&mut connection)
+        .await
+        .unwrap();
+
+    Ok(handle_upload_internally(
+        &mut connection,
+        &state.config.clone(),
+        multipart,
+        Some(result),
+    )
+    .await
+    .unwrap())
+}
+
+pub async fn handle_upload_internally<Conn>(
+    mut connection: &mut Conn,
+    config: &Config,
+    mut multipart: Multipart,
+    existing_model: Option<Model3D>,
+) -> Result<Json<Value>, StatusCode>
+where
+    Conn: AsyncConnection<Backend = diesel::sqlite::Sqlite>,
+{
+    let mut temp_dir = config.upload_cache.clone();
     temp_dir.push(Uuid::new_v4().to_string());
 
     if !Path::new(&temp_dir).exists() {
@@ -131,7 +214,6 @@ pub async fn handle_upload(
         })?;
 
     // copy readme if exists
-
     let readme_path = temp_dir.join("README.md");
     let new_readme_path = tmp_final_structure.join("README.md");
 
@@ -169,25 +251,56 @@ pub async fn handle_upload(
         })?;
     }
 
-    let libraries_path = state.config.libraries_path.clone();
+    let libraries_path = config.libraries_path.clone();
+    let final_path = libraries_path.join(&final_folder_name);
+
+    let mut merge = false;
+
+    // rename existing model folder
+    if let Some(model_to_move) = existing_model {
+        merge = true;
+        let old_absolute_path = model_to_move.absolute_path(&config);
+        if old_absolute_path != final_path {
+            debug!(
+                "Going to move {} to {}",
+                old_absolute_path.display(),
+                final_path.display()
+            );
+            tokio::fs::rename(old_absolute_path, &final_path)
+                .await
+                .map_err(|e| {
+                    error!("Rename operation failed: {:?}", e);
+                    cleanup_temp_dir(&temp_dir);
+                    StatusCode::INTERNAL_SERVER_ERROR
+                });
+
+            model_to_move.delete(&config, &mut connection).await;
+        } else {
+            debug!("No Model rename detected");
+        }
+    }
+
     fs_extra::move_items(
         &[tmp_final_structure],
         libraries_path.clone(),
-        &fs_extra::dir::CopyOptions::new(),
+        &fs_extra::dir::CopyOptions {
+            overwrite: merge,
+            copy_inside: merge,
+            ..fs_extra::dir::CopyOptions::new()
+        },
     )
-    .map_err(|_| {
+    .map_err(|e| {
+        error!("Final move operation failed: {:?}, merge: {}", e, merge);
         cleanup_temp_dir(&temp_dir);
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
 
     cleanup_temp_dir(&temp_dir);
 
-    let mut connection = state.pool.get().await.unwrap();
-    let final_path = libraries_path.join(&final_folder_name);
-    let model = add_or_update_model(&state.config, &mut connection, &final_path)
+    let model = add_or_update_model(&config, &mut connection, &final_path)
         .await
         .unwrap();
-    model.scan(&state.config, &mut connection).await;
+    model.scan(&config, &mut connection).await;
     debug!("Indexed {}", final_folder_name);
 
     let response = crate::types::UploadResponse {
