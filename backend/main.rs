@@ -1,12 +1,14 @@
-use axum::Json;
+use axum::http::StatusCode;
+use axum::response::Response;
 use axum::{
+    body::Body,
     extract::Path,
     extract::{DefaultBodyLimit, State},
-    http::StatusCode,
     response::IntoResponse,
     routing::{get, post},
     Router,
 };
+use axum::{http, Json};
 use diesel::prelude::*;
 use diesel::sqlite::SqliteConnection;
 use diesel_async::pooled_connection::bb8::Pool;
@@ -16,15 +18,18 @@ use diesel_async::sync_connection_wrapper::SyncConnectionWrapper;
 use diesel_async::{AsyncConnection, RunQueryDsl};
 use diesel_migrations::MigrationHarness;
 use diesel_migrations::{embed_migrations, EmbeddedMigrations};
+use http::header::{self};
 use schema::files3d::{self};
 use serde_derive::{Deserialize, Serialize};
 use std::path::PathBuf;
+use std::str::FromStr;
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::services::ServeDir;
 use tracing::{debug, error, info};
 use tracing_subscriber::EnvFilter;
-use types::{DetailedModelResponse, ModelResponseList};
+use types::{DetailedModelResponse, FileType, ModelResponseList};
 
+pub mod convert;
 pub mod parse_library;
 pub mod schema;
 pub mod stream_dl;
@@ -172,6 +177,62 @@ async fn delete_file(State(state): State<AppState>, Path(pk): Path<i32>) -> impl
     }
 }
 
+async fn convert_file(
+    State(state): State<AppState>,
+    Path((pk, target_type)): Path<(i32, String)>,
+) -> impl IntoResponse {
+    let mut connection = state.pool.get().await.unwrap();
+
+    let result = files3d::dsl::files3d
+        .filter(files3d::dsl::id.eq(pk))
+        .first::<File3D>(&mut connection)
+        .await
+        .unwrap();
+
+    let mut file_ending = "";
+    let buffer = match FileType::from_str(&target_type) {
+        Ok(FileType::STL) => match result.to_stl(&mut connection, &state.config).await {
+            Ok(buffer) => {
+                file_ending = "stl";
+                buffer
+            }
+            Err(e) => {
+                debug!("Error converting file: {}", e);
+                return Err(StatusCode::UNPROCESSABLE_ENTITY);
+            }
+        },
+        Ok(FileType::THREEMF) => match result.to_threemf(&mut connection, &state.config).await {
+            Ok(buffer) => {
+                file_ending = "3mf";
+                buffer
+            }
+            Err(e) => {
+                debug!("Error converting file: {}", e);
+                return Err(StatusCode::UNPROCESSABLE_ENTITY);
+            }
+        },
+        _ => return Err(StatusCode::UNPROCESSABLE_ENTITY),
+    };
+    let body = Body::from(buffer);
+
+    let response = Response::builder()
+        .status(StatusCode::OK)
+        .header(header::CONTENT_TYPE, "application/octet-stream")
+        .header(
+            header::CONTENT_DISPOSITION,
+            format!(
+                "attachment; filename=\"{}.{}\"",
+                result.get_file_name().await.unwrap(),
+                file_ending
+            )
+            .as_str(),
+        )
+        .body(body)
+        .unwrap();
+
+    Ok(response)
+}
+
 async fn handle_refresh(State(state): State<AppState>) -> impl IntoResponse {
     parse_library::refresh_library(state.pool, state.config.clone())
         .await
@@ -273,6 +334,7 @@ async fn main() {
         .route("/model/:slug/update", post(upload::handle_upload_update))
         .route("/model/:slug/delete", post(delete_model))
         .route("/file/:id/delete", post(delete_file))
+        .route("/file/:id/convert/:target_type", get(convert_file))
         .route("/download/:folder", get(handle_zip_download))
         .route("/upload", post(upload::handle_upload))
         .layer(DefaultBodyLimit::disable())

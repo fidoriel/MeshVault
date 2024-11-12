@@ -8,8 +8,11 @@ use chrono::NaiveDateTime;
 use diesel::prelude::*;
 use diesel_async::{AsyncConnection, RunQueryDsl};
 use serde::{Deserialize, Serialize};
+use std::str::FromStr;
 use tracing::{debug, error};
 use typeshare::typeshare;
+
+use crate::convert;
 
 fn comma_separated_to_pathbuf_vec(input: &str) -> Vec<PathBuf> {
     if input.trim().is_empty() {
@@ -24,6 +27,33 @@ fn pathbuf_vec_to_comma_separated(paths: Vec<PathBuf>) -> String {
         .map(|path| path.to_string_lossy().into_owned())
         .collect::<Vec<String>>()
         .join(",")
+}
+
+#[typeshare]
+#[derive(PartialEq)]
+pub enum FileType {
+    STL,
+    STEP,
+    THREEMF,
+    OBJ,
+    OTHER,
+}
+
+#[derive(Debug)]
+pub struct ParseFileTypeError;
+
+impl FromStr for FileType {
+    type Err = ParseFileTypeError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_uppercase().as_str() {
+            "STL" => Result::Ok(FileType::STL),
+            "STEP" => Result::Ok(FileType::STEP),
+            "3MF" | "THREEMF" => Result::Ok(FileType::THREEMF),
+            "OBJ" => Result::Ok(FileType::OBJ),
+            _ => Result::Ok(FileType::OTHER),
+        }
+    }
 }
 
 #[typeshare]
@@ -87,10 +117,10 @@ impl Model3D {
     where
         Conn: AsyncConnection<Backend = diesel::sqlite::Sqlite>,
     {
-        add_or_update_model(config, connection, &self.absolute_path(&config)).await?;
+        add_or_update_model(config, connection, &self.absolute_path(config)).await?;
         let files = self.get_files3d(connection).await?;
-        clean_file_system(&config, connection, files).await?;
-        load_files_and_preview(&config, connection, &self).await?;
+        clean_file_system(config, connection, files).await?;
+        load_files_and_preview(config, connection, self).await?;
 
         anyhow::Ok(())
     }
@@ -228,7 +258,9 @@ impl NewModel3D {
 }
 
 #[typeshare]
-#[derive(Debug, Serialize, Deserialize, Queryable, Identifiable, Associations, Selectable)]
+#[derive(
+    Debug, Serialize, Deserialize, Queryable, Identifiable, Associations, Selectable, Clone,
+)]
 #[diesel(belongs_to(Model3D, foreign_key = model_id))]
 #[diesel(table_name = files3d)]
 pub struct File3D {
@@ -242,7 +274,10 @@ pub struct File3D {
 }
 
 impl File3D {
-    pub async fn get_model<Conn>(&self, connection: &mut Conn) -> Model3D
+    pub async fn get_model<Conn>(
+        &self,
+        connection: &mut Conn,
+    ) -> Result<Model3D, diesel::result::Error>
     where
         Conn: AsyncConnection<Backend = diesel::sqlite::Sqlite>,
     {
@@ -250,7 +285,60 @@ impl File3D {
             .filter(models3d::dsl::id.eq(self.model_id))
             .first::<Model3D>(connection)
             .await
-            .unwrap()
+    }
+
+    pub fn file_type(self) -> FileType {
+        match std::path::Path::new(&self.file_path)
+            .extension()
+            .and_then(|ext| ext.to_str())
+        {
+            Some(ext) => FileType::from_str(ext).unwrap_or(FileType::OTHER),
+            None => FileType::OTHER,
+        }
+    }
+
+    pub fn stl_conversion_is_supported(&self) -> bool {
+        let supported_file_types = [FileType::STL, FileType::STEP, FileType::OBJ];
+        supported_file_types.contains(&self.clone().file_type())
+    }
+
+    pub fn threemf_conversion_is_supported(&self) -> bool {
+        let supported_file_types = [FileType::STL, FileType::STEP, FileType::OBJ];
+        supported_file_types.contains(&self.clone().file_type())
+    }
+
+    pub async fn to_stl<Conn>(
+        &self,
+        connection: &mut Conn,
+        config: &Config,
+    ) -> anyhow::Result<Vec<u8>>
+    where
+        Conn: AsyncConnection<Backend = diesel::sqlite::Sqlite>,
+    {
+        let src_file = self.get_file_path(connection, config).await;
+        match self.clone().file_type() {
+            FileType::STL => convert::astl_convert_to_bstl(&src_file),
+            FileType::STEP => convert::save_as_stl(&convert::load_step(&src_file).unwrap()),
+            FileType::OBJ => convert::save_as_stl(&convert::load_obj(&src_file).unwrap()),
+            _ => Err(anyhow::format_err!("unsupported file")),
+        }
+    }
+
+    pub async fn to_threemf<Conn>(
+        &self,
+        connection: &mut Conn,
+        config: &Config,
+    ) -> anyhow::Result<Vec<u8>>
+    where
+        Conn: AsyncConnection<Backend = diesel::sqlite::Sqlite>,
+    {
+        let src_file = self.get_file_path(connection, config).await;
+        match self.clone().file_type() {
+            FileType::STL => convert::save_as_threemf(&convert::load_stl(&src_file).unwrap()),
+            FileType::STEP => convert::save_as_threemf(&convert::load_step(&src_file).unwrap()),
+            FileType::OBJ => convert::save_as_threemf(&convert::load_obj(&src_file).unwrap()),
+            _ => Err(anyhow::format_err!("unsupported file")),
+        }
     }
 
     pub async fn get_file_name(&self) -> Option<String> {
@@ -265,7 +353,7 @@ impl File3D {
         Conn: AsyncConnection<Backend = diesel::sqlite::Sqlite>,
     {
         let mut file_pth = config.libraries_path.clone();
-        file_pth.push(self.get_model(connection).await.folder_path);
+        file_pth.push(self.get_model(connection).await.unwrap().folder_path);
         file_pth.push(&self.file_path);
 
         file_pth
@@ -278,7 +366,7 @@ impl File3D {
         format!(
             "{}/{}/{}",
             config.asset_prefix,
-            self.get_model(connection).await.folder_path,
+            self.get_model(connection).await.unwrap().folder_path,
             &self.file_path
         )
     }
@@ -293,7 +381,7 @@ impl File3D {
     where
         Conn: AsyncConnection<Backend = diesel::sqlite::Sqlite>,
     {
-        let file = self.get_file_path(connection, &config).await;
+        let file = self.get_file_path(connection, config).await;
         debug!("File path obtained: {:?}", file.display());
 
         match tokio::fs::remove_file(&file).await {
@@ -307,10 +395,10 @@ impl File3D {
 
         debug!("Delete file {:?}", file.display());
 
-        let model = self.get_model(connection).await;
+        let model = self.get_model(connection).await.unwrap();
         debug!("Model obtained, starting scan.");
 
-        match model.scan(&config, connection).await {
+        match model.scan(config, connection).await {
             Ok(_) => {
                 debug!("Scan completed successfully.");
             }
@@ -344,6 +432,8 @@ pub struct DetailedFileResponse {
     pub date_added: Option<NaiveDateTime>,
     pub file_hash: Option<String>,
     pub file_size: String,
+    pub stl_conversion_is_supported: bool,
+    pub threemf_conversion_is_supported: bool,
 }
 
 impl DetailedFileResponse {
@@ -362,6 +452,8 @@ impl DetailedFileResponse {
             date_added: file.date_added,
             file_hash: file.file_hash.clone(),
             file_size: human_bytes::human_bytes(file.file_size_bytes as f64),
+            stl_conversion_is_supported: file.stl_conversion_is_supported(),
+            threemf_conversion_is_supported: file.threemf_conversion_is_supported(),
         }
     }
 }

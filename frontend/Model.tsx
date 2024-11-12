@@ -91,7 +91,7 @@ function OptionsDropdownMenu({ model }: { model: DetailedModelResponse }) {
                             className="bg-destructive hover:bg-destructive/80 text-destructive-foreground"
                         >
                             Delete
-                        </AlertDialogAction>{" "}
+                        </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
@@ -357,6 +357,30 @@ function File({ file, reload: reload }: { file: DetailedFileResponse; reload: ()
                                 <DropdownMenuLabel>File Options</DropdownMenuLabel>
                                 <DropdownMenuSeparator></DropdownMenuSeparator>
                                 <DropdownMenuItem onClick={() => setIsDeleteDialogOpen(true)}>Delete</DropdownMenuItem>
+                                {file.stl_conversion_is_supported && (
+                                    <DropdownMenuItem
+                                        onClick={() =>
+                                            saveAs(
+                                                BACKEND_BASE_URL + `/api/file/${file.id}/convert/stl`,
+                                                file.name + ".stl",
+                                            )
+                                        }
+                                    >
+                                        Convert to binary STL
+                                    </DropdownMenuItem>
+                                )}
+                                {file.threemf_conversion_is_supported && (
+                                    <DropdownMenuItem
+                                        onClick={() =>
+                                            saveAs(
+                                                BACKEND_BASE_URL + `/api/file/${file.id}/convert/threemf`,
+                                                file.name + ".3mf",
+                                            )
+                                        }
+                                    >
+                                        Convert to 3mf
+                                    </DropdownMenuItem>
+                                )}
                             </DropdownMenuContent>
                         </DropdownMenu>
                     </div>
@@ -379,7 +403,7 @@ function File({ file, reload: reload }: { file: DetailedFileResponse; reload: ()
                             className="bg-destructive hover:bg-destructive/80 text-destructive-foreground"
                         >
                             Delete
-                        </AlertDialogAction>{" "}
+                        </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>

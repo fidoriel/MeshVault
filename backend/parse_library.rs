@@ -183,7 +183,7 @@ where
 {
     // delete file references deleted in fs
     for file in files {
-        let file_pth = file.get_file_path(connection, &config).await.clone();
+        let file_pth = file.get_file_path(connection, config).await.clone();
 
         if fs::metadata(&file_pth).await.is_ok() {
             let current_sha = sha256::try_async_digest(file_pth.clone())
@@ -212,7 +212,7 @@ pub async fn add_or_update_model<Conn>(
 where
     Conn: AsyncConnection<Backend = diesel::sqlite::Sqlite>,
 {
-    let relative_dir = pathdiff::diff_paths(&dir, &config.libraries_path).unwrap();
+    let relative_dir = pathdiff::diff_paths(dir, &config.libraries_path).unwrap();
 
     let result: Option<Model3D> = models3d::dsl::models3d
         .filter(models3d::dsl::folder_path.eq(relative_dir.to_str().unwrap()))
@@ -223,11 +223,11 @@ where
     let mut image_dir = dir.clone();
     image_dir.push("images");
 
-    let model_pack_meta = match get_modelpack_meta(&dir).await {
+    let model_pack_meta = match get_modelpack_meta(dir).await {
         Ok(meta) => meta,
         Err(_) => {
             if let Some(existing_model) = result {
-                existing_model.delete(&config, connection).await?;
+                existing_model.delete(config, connection).await?;
             }
             return Err(anyhow::Error::msg("Failed to get model pack meta"));
         }
@@ -236,7 +236,7 @@ where
     let new_object: NewModel3D = NewModel3D::from_model_pack_v0_1(
         &model_pack_meta,
         &relative_dir,
-        get_all_image_files(&image_dir, &dir).await.unwrap(),
+        get_all_image_files(&image_dir, dir).await.unwrap(),
     )
     .unwrap();
 
@@ -283,8 +283,11 @@ where
     let mut model_base_path = config.libraries_path.clone();
     model_base_path.push(model.folder_path.clone());
 
+    let mut search_dir = model_base_path.clone();
+    search_dir.push("files");
+
     debug!("starting search for {:?}", model_base_path);
-    for entry in walkdir::WalkDir::new(&model_base_path) {
+    for entry in walkdir::WalkDir::new(&search_dir) {
         let entry = match entry {
             Ok(path) => path,
             Err(e) => return Err(e.into()),
@@ -297,12 +300,6 @@ where
 
         if file_pth.is_dir() {
             continue;
-        }
-
-        if let Some(extension) = file_pth.extension() {
-            if !mesh_files.contains(&extension.to_str().unwrap().to_lowercase().as_str()) {
-                continue;
-            }
         }
 
         let relative_path = pathdiff::diff_paths(file_pth, &model_base_path).unwrap();
@@ -325,26 +322,35 @@ where
             .unwrap()
             .to_string();
 
-        let mut img_path = config.preview_cache_dir.clone();
-        let file_name = format!("{}.png", hash);
-        img_path.push(file_name.clone());
+        let preview_image: Option<String>;
+        if file_pth
+            .extension()
+            .filter(|ext| mesh_files.contains(&ext.to_str().unwrap().to_lowercase().as_str()))
+            .is_some()
+        {
+            let mut img_path = config.preview_cache_dir.clone();
+            let file_name = format!("{}.png", hash);
+            img_path.push(file_name.clone());
 
-        let mut render_config = stl_thumb::config::Config::default();
-        render_config.model_filename = file_pth.to_str().unwrap().to_string();
-        render_config.img_filename = img_path.to_str().unwrap().to_string();
+            let mut render_config = stl_thumb::config::Config::default();
+            render_config.model_filename = file_pth.to_str().unwrap().to_string();
+            render_config.img_filename = img_path.to_str().unwrap().to_string();
 
-        let preview_image = if let Err(err) = panic::catch_unwind(|| {
-            stl_thumb::render_to_file(&render_config).unwrap();
-        }) {
-            error!(
-                "Unable to render preview: {:?} Error: {:?}",
-                file_pth.to_str(),
-                err
-            );
-            None
+            preview_image = if let Err(err) = panic::catch_unwind(|| {
+                stl_thumb::render_to_file(&render_config).unwrap();
+            }) {
+                error!(
+                    "Unable to render preview: {:?} Error: {:?}",
+                    file_pth.to_str(),
+                    err
+                );
+                None
+            } else {
+                Some(file_name)
+            };
         } else {
-            Some(file_name)
-        };
+            preview_image = None;
+        }
 
         let new_file = NewFile3D {
             model_id: model.id,
@@ -391,7 +397,7 @@ where
         if !exists {
             match fs::remove_file(&pth).await {
                 Ok(()) => debug!("Preview cache deleted successfully: {}", pth.display()),
-                Err(e) => eprintln!(
+                Err(e) => error!(
                     "Failed to delete preview cache: {}. Error: {}",
                     pth.display(),
                     e

@@ -70,12 +70,10 @@ async fn merge_directories(src: &Path, dest: &Path, overwrite: bool) -> Result<(
                     .await
                     .with_context(|| format!("Failed to create directory: {:?}", dest_path))?;
                 queue.push_back((path, dest_path));
-            } else if path.is_file() {
-                if overwrite || !fs::try_exists(&dest_path).await? {
-                    fs::copy(&path, &dest_path).await.with_context(|| {
-                        format!("Failed to copy file from {:?} to {:?}", path, dest_path)
-                    })?;
-                }
+            } else if path.is_file() && (overwrite || !fs::try_exists(&dest_path).await?) {
+                fs::copy(&path, &dest_path).await.with_context(|| {
+                    format!("Failed to copy file from {:?} to {:?}", path, dest_path)
+                })?;
             }
         }
     }
@@ -85,7 +83,7 @@ async fn merge_directories(src: &Path, dest: &Path, overwrite: bool) -> Result<(
 
 pub async fn handle_upload(
     State(state): State<crate::AppState>,
-    mut multipart: Multipart,
+    multipart: Multipart,
 ) -> Result<Json<Value>, StatusCode> {
     let mut connection = state.pool.get().await.unwrap();
     Ok(
@@ -98,7 +96,7 @@ pub async fn handle_upload(
 pub async fn handle_upload_update(
     State(state): State<crate::AppState>,
     axum::extract::Path(slug): axum::extract::Path<String>,
-    mut multipart: Multipart,
+    multipart: Multipart,
 ) -> Result<Json<Value>, StatusCode> {
     let mut connection = state.pool.get().await.unwrap();
 
@@ -259,7 +257,7 @@ where
     // rename existing model folder
     if let Some(model_to_move) = existing_model {
         merge = true;
-        let old_absolute_path = model_to_move.absolute_path(&config);
+        let old_absolute_path = model_to_move.absolute_path(config);
         if old_absolute_path != final_path {
             debug!(
                 "Going to move {} to {}",
@@ -274,7 +272,7 @@ where
                     StatusCode::INTERNAL_SERVER_ERROR
                 });
 
-            model_to_move.delete(&config, &mut connection).await;
+            model_to_move.delete(config, &mut connection).await;
         } else {
             debug!("No Model rename detected");
         }
@@ -297,10 +295,10 @@ where
 
     cleanup_temp_dir(&temp_dir);
 
-    let model = add_or_update_model(&config, &mut connection, &final_path)
+    let model = add_or_update_model(config, &mut connection, &final_path)
         .await
         .unwrap();
-    model.scan(&config, &mut connection).await;
+    model.scan(config, &mut connection).await;
     debug!("Indexed {}", final_folder_name);
 
     let response = crate::types::UploadResponse {

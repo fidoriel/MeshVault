@@ -21,14 +21,14 @@ ARG BUILDPLATFORM
 RUN if [ "$TARGETPLATFORM" = "linux/arm64" ]; then \
         dpkg --add-architecture arm64 && \
         apt-get update -y && \
-        apt-get install -y libsqlite3-dev:arm64 libfontconfig1-dev:arm64 libexpat1-dev:arm64 && \
+        apt-get install -y libsqlite3-dev:arm64 libfontconfig1-dev:arm64 libexpat1-dev:arm64 libocct-data-exchange-dev:arm64 && \
         export PKG_CONFIG_SYSROOT_DIR=/usr/aarch64-linux-gnu && \
         export PKG_CONFIG_PATH=/usr/aarch64-linux-gnu/lib/pkgconfig && \
         export TARGET_CHAIN=aarch64-unknown-linux-gnu; \
     elif [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
         dpkg --add-architecture amd64 && \
         apt-get update -y && \
-        apt-get install -y libsqlite3-dev:amd64 libfreetype6-dev:amd64 libfontconfig1-dev:amd64 libexpat1-dev:amd64 && \
+        apt-get install -y libsqlite3-dev:amd64 libfreetype6-dev:amd64 libfontconfig1-dev:amd64 libexpat1-dev:amd64 libocct-data-exchange-dev:amd64 && \
         export PKG_CONFIG_SYSROOT_DIR=/usr/x86_64-linux-gnu && \
         export PKG_CONFIG_PATH=/usr/x86_64-linux-gnu/lib/pkgconfig && \
         export TARGET_CHAIN=x86_64-unknown-linux-gnu; \
@@ -71,7 +71,7 @@ ENV PORT="51100"
 
 RUN apt-get update && \
     apt-get install -y sqlite3 && \
-    apt-get install -y libosmesa6-dev libfreetype6 libfontconfig1 && \
+    apt-get install -y libosmesa6-dev libfreetype6 libfontconfig1 libocct-data-exchange-7.6 && \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /meshvault
