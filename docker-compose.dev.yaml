@@ -1,0 +1,16 @@
+services:
+    meshvault:
+        build:
+          context: .
+          dockerfile: dev.Dockerfile
+        volumes:
+            - ".:/code"
+            - "/code/target"
+            - "/code/node_modules"
+        ports:
+            - "127.0.0.1:51100:51100"
+        environment:
+            - DATA_DIR=./docker_data
+            - LIBRARIES_PATH=./3dassets
+            - HOST=0.0.0.0
+        command: ["cargo", "run"]

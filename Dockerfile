@@ -1,6 +1,6 @@
 FROM --platform=$BUILDPLATFORM rust:1.82-bookworm AS rust-builder
 
-RUN apt-get update -y && apt-get install gcc-aarch64-linux-gnu g++-aarch64-linux-gnu gcc-x86-64-linux-gnu -y
+RUN apt-get update -y && apt-get install gcc-aarch64-linux-gnu g++-aarch64-linux-gnu gcc-x86-64-linux-gnu libc6-dev-arm64-cross -y
 
 RUN apt-get install -y cmake pkg-config
 
@@ -21,9 +21,10 @@ ARG BUILDPLATFORM
 RUN if [ "$TARGETPLATFORM" = "linux/arm64" ]; then \
         dpkg --add-architecture arm64 && \
         apt-get update -y && \
-        apt-get install -y libsqlite3-dev:arm64 libfontconfig1-dev:arm64 libexpat1-dev:arm64 libocct-data-exchange-dev:arm64 && \
+        apt-get install -y libsqlite3-dev:arm64 libfreetype6-dev:arm64 libfontconfig1-dev:arm64 libexpat1-dev:arm64 libocct-data-exchange-dev:arm64 && \
         export PKG_CONFIG_SYSROOT_DIR=/usr/aarch64-linux-gnu && \
         export PKG_CONFIG_PATH=/usr/aarch64-linux-gnu/lib/pkgconfig && \
+        export BINDGEN_EXTRA_CLANG_ARGS="--sysroot=/usr/aarch64-linux-gnu" && \
         export TARGET_CHAIN=aarch64-unknown-linux-gnu; \
     elif [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
         dpkg --add-architecture amd64 && \
