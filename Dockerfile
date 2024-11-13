@@ -10,7 +10,7 @@ RUN rustup target add aarch64-unknown-linux-gnu
 WORKDIR /code
 COPY Cargo.toml Cargo.lock diesel.toml ./
 COPY .cargo/config.toml .cargo/config.toml
-RUN cargo fetch
+RUN cargo fetch --locked
 
 COPY backend/ backend/
 COPY migrations/ migrations/
@@ -33,7 +33,7 @@ RUN if [ "$TARGETPLATFORM" = "linux/arm64" ]; then \
         export PKG_CONFIG_PATH=/usr/x86_64-linux-gnu/lib/pkgconfig && \
         export TARGET_CHAIN=x86_64-unknown-linux-gnu; \
     fi && \
-    cargo build --release --target $TARGET_CHAIN && \
+    cargo build --release --locked --target $TARGET_CHAIN && \
     mv target/$TARGET_CHAIN/release/meshvault .
 
 
