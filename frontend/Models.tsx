@@ -93,6 +93,7 @@ function Models() {
 
     useEffect(() => {
         getModels();
+        document.title = "MeshVault";
     }, []);
 
     return (
