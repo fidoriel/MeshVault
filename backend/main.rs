@@ -3,7 +3,7 @@ use axum::response::Response;
 use axum::{
     body::Body,
     extract::Path,
-    extract::{DefaultBodyLimit, State},
+    extract::{DefaultBodyLimit, Query, State},
     response::IntoResponse,
     routing::{get, post},
     Router,
@@ -37,6 +37,7 @@ pub mod types;
 pub mod upload;
 use crate::schema::models3d;
 use crate::types::File3D;
+use crate::types::ListModelParams;
 use crate::types::Model3D;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -248,16 +249,60 @@ async fn handle_refresh(State(state): State<AppState>) -> impl IntoResponse {
     (StatusCode::OK, "Done".to_string())
 }
 
-async fn list_models(State(state): State<AppState>) -> impl IntoResponse {
+async fn list_models(
+    State(state): State<AppState>,
+    Query(params): Query<ListModelParams>,
+) -> impl IntoResponse {
     let mut connection = state.pool.get().await.unwrap();
 
-    let all_models = models3d::dsl::models3d
-        .load::<Model3D>(&mut connection)
+    let mut models = models3d::dsl::models3d.into_boxed();
+
+    if let Some(ref q) = params.q {
+        let pattern = format!("%{}%", q);
+        models = models.filter(
+            models3d::dsl::name
+                .like(pattern.clone())
+                .or(models3d::dsl::title.like(pattern.clone()))
+                .or(models3d::dsl::description.like(pattern.clone()))
+                .or(models3d::dsl::author.like(pattern.clone())),
+        );
+    }
+
+    if let Some(licenses) = params.licenses {
+        let split_licenses: Vec<Option<String>> = licenses
+            .clone()
+            .split(',')
+            .map(|s| Some(s.to_string()))
+            .collect();
+        for (i, license) in split_licenses.iter().enumerate() {
+            debug!("Filtering models with license: {:?}", license.clone());
+            if i == 0 {
+                models = models.filter(models3d::dsl::license.eq(license.clone()));
+            } else {
+                models = models.or_filter(models3d::dsl::license.eq(license.clone()));
+            }
+        }
+    }
+
+    let licenses_to_select: Vec<String> = models3d::dsl::models3d
+        .select(models3d::dsl::license)
+        .distinct()
+        .filter(models3d::dsl::license.ne(""))
+        .load::<Option<String>>(&mut connection)
         .await
-        .unwrap();
-    let response = ModelResponseList::from_model_3d(all_models, &state.config, &mut connection)
-        .await
-        .unwrap();
+        .unwrap()
+        .into_iter()
+        .filter_map(|license| license)
+        .collect();
+
+    let response = ModelResponseList::from_model_3d(
+        models.load::<Model3D>(&mut connection).await.unwrap(),
+        licenses_to_select,
+        &state.config,
+        &mut connection,
+    )
+    .await
+    .unwrap();
 
     (StatusCode::OK, Json(response))
 }

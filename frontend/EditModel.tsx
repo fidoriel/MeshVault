@@ -48,6 +48,7 @@ function EditModel() {
                     origin: model.origin || "",
                     license: model.license || "",
                 });
+                setDescription(model.description);
             })
             .catch((error) => {
                 console.error("Fetch error:", error);

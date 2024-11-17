@@ -14,6 +14,7 @@ import AboutModelPack from "./ModelPack";
 import UploadModel from "./UploadModel";
 import { Toaster } from "./components/ui/toaster";
 import EditModel from "./EditModel";
+import SearchView from "./SearchView";
 
 function GitHubButton() {
     const { theme } = useTheme();
@@ -60,7 +61,7 @@ function Refresh() {
     );
 }
 
-function Navbar() {
+function Navbar({ searchValue, setSearchValue }: { searchValue: string; setSearchValue: (value: string) => void }) {
     return (
         <div className="sticky top-0 w-full border-b shadow-sm bg-background z-50">
             <div className="container mx-auto flex h-16 items-center px-4">
@@ -73,7 +74,7 @@ function Navbar() {
                     </NavLink>
                 </nav>
                 <div className="ml-auto flex items-center space-x-4">
-                    <Search />
+                    <Search setSearchValue={setSearchValue} searchValue={searchValue} />
                     <ModeToggle />
                     <Link to="/upload">
                         <Button variant="outline" size="icon">
@@ -91,24 +92,28 @@ function Navbar() {
 }
 
 function App() {
+    const [searchValue, setSearchValue] = useState("");
+
     return (
-        <>
-            <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
-                <BrowserRouter>
-                    <Navbar />
-                    <div className="container mx-auto py-6">
-                        <Routes>
-                            <Route path="/" element={<Models />} />
-                            <Route path="/upload" element={<UploadModel />} />
-                            <Route path="/model/:slug" element={<Model />} />
-                            <Route path="/model/:slug/edit" element={<EditModel />} />
-                            <Route path="/modelpack" element={<AboutModelPack />} />
-                        </Routes>
-                    </div>
-                </BrowserRouter>
-                <Toaster />
-            </ThemeProvider>
-        </>
+        <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
+            <BrowserRouter>
+                <Navbar setSearchValue={setSearchValue} searchValue={searchValue} />
+                <div className="container mx-auto py-6">
+                    <Routes>
+                        <Route path="/" element={<Models />} />
+                        <Route path="/upload" element={<UploadModel />} />
+                        <Route path="/model/:slug" element={<Model />} />
+                        <Route path="/model/:slug/edit" element={<EditModel />} />
+                        <Route path="/modelpack" element={<AboutModelPack />} />
+                        <Route
+                            path="/search"
+                            element={<SearchView searchValue={searchValue} setSearchValue={setSearchValue} />}
+                        />
+                    </Routes>
+                </div>
+            </BrowserRouter>
+            <Toaster />
+        </ThemeProvider>
     );
 }
 

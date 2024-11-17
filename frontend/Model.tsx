@@ -255,16 +255,10 @@ function InfoCard({ model, refresh }: { model: DetailedModelResponse; refresh: (
                     <span className="font-bold">License:</span> {model.license}
                 </div>
                 <div>
-                    <span className="font-bold">Price:</span> $49.99
-                </div>
-                <div>
                     <span className="font-bold">Origin URL:</span>
                     <a href={model.origin} className="text-blue-500 hover:underline ml-1">
                         {model.origin}
                     </a>
-                </div>
-                <div>
-                    <span className="font-bold">Paid:</span> Yes
                 </div>
             </div>
         </div>

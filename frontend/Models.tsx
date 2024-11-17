@@ -3,7 +3,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Heart, Bookmark, ChevronDown, ChevronRight } from "lucide-react";
 import { useState } from "react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
     Pagination,
@@ -18,6 +17,7 @@ import { ModelResponse, ModelResponseList } from "./bindings";
 import { BACKEND_BASE_URL } from "./lib/api";
 import { useTheme } from "./components/theme-provider";
 import { Link } from "react-router-dom";
+import { Checkbox } from "./components/ui/checkbox";
 
 function FilterSection({ title, children }: { title: string; children: ReactNode }) {
     const [isOpen, setIsOpen] = React.useState(true);
@@ -33,7 +33,7 @@ function FilterSection({ title, children }: { title: string; children: ReactNode
     );
 }
 
-function ModelCard({ model }: { model: ModelResponse }) {
+export function ModelCard({ model }: { model: ModelResponse }) {
     const image = model.images && model.images.length > 0 ? `${BACKEND_BASE_URL}${model.images[0]}` : null;
     const { theme } = useTheme();
     const fillColor = theme === "dark" ? "white" : "black";
@@ -72,6 +72,7 @@ function ModelCard({ model }: { model: ModelResponse }) {
 
 function Models() {
     const [models, setModels] = useState<ModelResponseList>();
+    const [selectedLicenses, setSelectedLicenses] = useState<string[]>([]);
 
     async function getModels() {
         fetch(BACKEND_BASE_URL + "/api/models/list", {
@@ -91,10 +92,44 @@ function Models() {
             });
     }
 
+    async function filterModels() {
+        const selectedLicensesString = selectedLicenses.join(",");
+        const queryString = selectedLicensesString ? `?licenses=${selectedLicensesString}` : "";
+
+        fetch(BACKEND_BASE_URL + "/api/models/list" + queryString, {
+            method: "GET",
+        })
+            .then((response) => {
+                if (!response.ok) {
+                    throw new Error("Network response was not ok");
+                }
+                return response.json();
+            })
+            .then((response_models: ModelResponseList) => {
+                setModels(response_models);
+            })
+            .catch((error) => {
+                console.error("Fetch error:", error);
+            });
+    }
+
+    const handleLicenseChange = (license: string) => {
+        setSelectedLicenses((prevSelected) =>
+            prevSelected.includes(license)
+                ? prevSelected.filter((item) => item !== license)
+                : [...prevSelected, license],
+        );
+    };
+
     useEffect(() => {
         getModels();
         document.title = "MeshVault";
     }, []);
+
+    useEffect(() => {
+        console.log(selectedLicenses);
+        filterModels();
+    }, [selectedLicenses]);
 
     return (
         <div className="min-h-screen bg-background text-foreground">
@@ -106,31 +141,24 @@ function Models() {
                 <div className="flex gap-6">
                     <div className="w-64 flex-shrink-0">
                         <div className="bg-card rounded-lg p-4 space-y-4 border border-border">
-                            <FilterSection title="Categories">
-                                <div className="space-y-2 pl-4">
-                                    <Button variant="ghost" className="w-full justify-start text-sm">
-                                        Tabletop
-                                    </Button>
-                                    <Button variant="ghost" className="w-full justify-start text-sm">
-                                        Calibration
-                                    </Button>
-                                    <Button variant="ghost" className="w-full justify-start text-sm">
-                                        Tools
-                                    </Button>
-                                </div>
-                            </FilterSection>
-
                             <FilterSection title="License">
-                                <Select>
-                                    <SelectTrigger className="w-full">
-                                        <SelectValue placeholder="GPL" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="1">GPL</SelectItem>
-                                        <SelectItem value="2">MIT</SelectItem>
-                                        <SelectItem value="3">paid</SelectItem>
-                                    </SelectContent>
-                                </Select>
+                                <div className="space-y-2 pl-4">
+                                    {models?.licenses.map((license) => (
+                                        <div className="flex items-center space-x-2" key={license}>
+                                            <Checkbox
+                                                id={license}
+                                                checked={selectedLicenses.includes(license)}
+                                                onCheckedChange={() => handleLicenseChange(license)}
+                                            />
+                                            <label
+                                                htmlFor={license}
+                                                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                                            >
+                                                {license}
+                                            </label>
+                                        </div>
+                                    ))}
+                                </div>
                             </FilterSection>
                         </div>
                     </div>
