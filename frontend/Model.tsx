@@ -315,7 +315,7 @@ function File({ file, reload: reload }: { file: DetailedFileResponse; reload: ()
             <Card className="p-4">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                        <img src={BACKEND_BASE_URL + file.preview_image} className="h-24" />
+                        {file.preview_image && <img src={BACKEND_BASE_URL + file.preview_image} className="h-24" />}
                         <div>
                             <h3 className="font-medium">{file.name}</h3>
                             <p className="text-sm text-gray-500">
