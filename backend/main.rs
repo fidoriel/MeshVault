@@ -24,7 +24,7 @@ use serde_derive::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::str::FromStr;
 use tower_http::cors::{Any, CorsLayer};
-use tower_http::services::ServeDir;
+use tower_http::services::{ServeDir, ServeFile};
 use tracing::{debug, error, info};
 use tracing_subscriber::EnvFilter;
 use types::{DetailedModelResponse, FileType, ModelResponseList};
@@ -403,7 +403,10 @@ async fn main() {
             &config.cache_prefix.to_string(),
             ServeDir::new(config.preview_cache_dir),
         )
-        .nest_service("/", ServeDir::new("dist")) // deliver vite bundle
+        .nest_service(
+            "/",
+            ServeDir::new("dist").fallback(ServeFile::new("dist/index.html")),
+        )
         .fallback(fallback_404)
         .layer(cors);
 

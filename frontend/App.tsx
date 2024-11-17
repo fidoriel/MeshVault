@@ -15,6 +15,7 @@ import UploadModel from "./UploadModel";
 import { Toaster } from "./components/ui/toaster";
 import EditModel from "./EditModel";
 import SearchView from "./SearchView";
+import NotFound from "./NotFound";
 
 function GitHubButton() {
     const { theme } = useTheme();
@@ -109,6 +110,7 @@ function App() {
                             path="/search"
                             element={<SearchView searchValue={searchValue} setSearchValue={setSearchValue} />}
                         />
+                        <Route path="*" element={<NotFound />} />
                     </Routes>
                 </div>
             </BrowserRouter>
