@@ -204,6 +204,24 @@ where
     anyhow::Ok(())
 }
 
+async fn read_readme(dir: &std::path::Path) -> anyhow::Result<String> {
+    let mut readme_path = dir.to_path_buf();
+    readme_path.push("readme.md");
+    if let Ok(content) = fs::read_to_string(&readme_path).await {
+        return Ok(content);
+    }
+
+    readme_path.set_file_name("README.md");
+    if let Ok(content) = fs::read_to_string(&readme_path).await {
+        return Ok(content);
+    }
+
+    Err(anyhow::Error::new(std::io::Error::new(
+        std::io::ErrorKind::NotFound,
+        "readme.md or README.md not found",
+    )))
+}
+
 pub async fn add_or_update_model<Conn>(
     config: &Config,
     connection: &mut Conn,
@@ -233,10 +251,16 @@ where
         }
     };
 
+    let readme = match read_readme(&dir).await {
+        Ok(content) => content,
+        Err(_) => String::new(),
+    };
+
     let new_object: NewModel3D = NewModel3D::from_model_pack_v0_1(
         &model_pack_meta,
         &relative_dir,
         get_all_image_files(&image_dir, dir).await.unwrap(),
+        readme.clone(),
     )
     .unwrap();
 
@@ -249,6 +273,7 @@ where
                 models3d::dsl::author.eq(&new_object.author),
                 models3d::dsl::origin.eq(&new_object.origin),
                 models3d::dsl::images.eq(new_object.images),
+                models3d::dsl::description.eq(readme.clone()),
             ))
             .execute(connection)
             .await

@@ -17,6 +17,6 @@ export default defineConfig({
         },
     },
     build: {
-        chunkSizeWarningLimit: 1024, // the 3d viewer stuff is huge
+        chunkSizeWarningLimit: 2048, // the 3d viewer stuff is huge
     },
 });

@@ -87,6 +87,7 @@ pub struct Model3D {
     pub origin: Option<String>,
     pub date_added: Option<NaiveDateTime>,
     pub images: String,
+    pub description: String,
 }
 
 impl Model3D {
@@ -150,6 +151,7 @@ pub struct ModelResponse {
     pub author: Option<String>,
     pub origin: Option<String>,
     pub images: Vec<String>,
+    pub description: String,
 }
 
 impl ModelResponse {
@@ -189,6 +191,7 @@ impl ModelResponse {
             author: model.author.clone(),
             origin: model.origin.clone(),
             images,
+            description: model.description.clone(),
         })
     }
 }
@@ -233,6 +236,7 @@ pub struct NewModel3D {
     pub folder_path: String,
     pub origin: Option<String>,
     pub images: String,
+    pub description: String,
 }
 
 impl NewModel3D {
@@ -240,6 +244,7 @@ impl NewModel3D {
         pack: &ModelPackV0_1,
         folder_path: &PathBuf,
         image_paths: Vec<PathBuf>,
+        readme: String,
     ) -> Result<Self, Error> {
         Ok(Self {
             title: pack.title.clone(),
@@ -249,6 +254,7 @@ impl NewModel3D {
             folder_path: folder_path.clone().into_os_string().into_string().unwrap(),
             origin: Some(pack.origin.clone()),
             images: pathbuf_vec_to_comma_separated(image_paths),
+            description: readme,
         })
     }
 
@@ -470,6 +476,7 @@ pub struct DetailedModelResponse {
     pub origin: Option<String>,
     pub images: Vec<String>,
     pub files: Vec<DetailedFileResponse>,
+    pub description: String,
 }
 
 impl DetailedModelResponse {
@@ -518,6 +525,7 @@ impl DetailedModelResponse {
             origin: model.origin.clone(),
             images,
             files: detailed_files,
+            description: model.description.clone(),
         })
     }
 }

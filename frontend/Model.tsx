@@ -8,6 +8,8 @@ import { DetailedFileResponse, DetailedModelResponse } from "./bindings";
 import { BACKEND_BASE_URL } from "./lib/api";
 import { saveAs } from "file-saver";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 import {
     DropdownMenu,
@@ -33,6 +35,7 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { useTheme } from "./components/theme-provider";
 
 function OptionsDropdownMenu({ model }: { model: DetailedModelResponse }) {
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -269,12 +272,14 @@ function InfoCard({ model, refresh }: { model: DetailedModelResponse; refresh: (
 }
 
 function Description({ model }: { model: DetailedModelResponse }) {
+    const { theme } = useTheme();
+
     return (
         <div className="max-w-6xl mx-auto p-6">
-            <div className="prose max-w-none">
-                <h2 className="text-xl font-bold mb-4">Description</h2>
-                <p className="mb-4">{model.title}</p>
-            </div>
+            <article className={`prose prose-sm ${theme === "dark" ? "dark:prose-invert" : ""} max-w-none`}>
+                <h1>Description</h1>
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{model.description}</ReactMarkdown>
+            </article>
         </div>
     );
 }
