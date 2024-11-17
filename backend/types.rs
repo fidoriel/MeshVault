@@ -200,11 +200,13 @@ impl ModelResponse {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ModelResponseList {
     pub models: Vec<ModelResponse>,
+    pub licenses: Vec<String>,
 }
 
 impl ModelResponseList {
     pub async fn from_model_3d<Conn>(
         model: Vec<Model3D>,
+        licenses: Vec<String>,
         config: &Config,
         connection: &mut Conn,
     ) -> Result<ModelResponseList, Error>
@@ -220,7 +222,7 @@ impl ModelResponseList {
             models.push(model_response);
         }
 
-        let response = ModelResponseList { models };
+        let response = ModelResponseList { models, licenses };
         Ok(response)
     }
 }
@@ -527,5 +529,20 @@ impl DetailedModelResponse {
             files: detailed_files,
             description: model.description.clone(),
         })
+    }
+}
+
+#[derive(Deserialize)]
+pub struct ListModelParams {
+    pub q: Option<String>,
+    pub licenses: Option<String>,
+}
+
+impl Default for ListModelParams {
+    fn default() -> Self {
+        Self {
+            q: None,
+            licenses: None,
+        }
     }
 }
