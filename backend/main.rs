@@ -135,14 +135,21 @@ async fn refresh_model(
     let mut connection = state.pool.get().await.unwrap();
 
     let result = models3d::dsl::models3d
-        .filter(models3d::dsl::name.eq(slug))
+        .filter(models3d::dsl::name.eq(slug.clone()))
         .first::<Model3D>(&mut connection)
         .await
         .unwrap();
     result.scan(&state.config, &mut connection).await;
-    let response = DetailedModelResponse::from_model_3d(&result, &state.config, &mut connection)
+
+    let reloaded_result = models3d::dsl::models3d
+        .filter(models3d::dsl::name.eq(slug))
+        .first::<Model3D>(&mut connection)
         .await
         .unwrap();
+    let response =
+        DetailedModelResponse::from_model_3d(&reloaded_result, &state.config, &mut connection)
+            .await
+            .unwrap();
     (StatusCode::OK, Json(response))
 }
 

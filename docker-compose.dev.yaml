@@ -1,8 +1,8 @@
 services:
     meshvault:
         build:
-          context: .
-          dockerfile: dev.Dockerfile
+            context: .
+            dockerfile: dev.Dockerfile
         volumes:
             - ".:/code"
             - "/code/target"

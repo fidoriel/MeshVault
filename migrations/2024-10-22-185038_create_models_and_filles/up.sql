@@ -7,7 +7,8 @@ CREATE TABLE models3d (
     folder_path VARCHAR(4096) NOT NULL UNIQUE,
     origin VARCHAR(2048),
     date_added TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    images VARCHAR
+    images VARCHAR,
+    description VARCHAR DEFAULT ''
 );
 
 CREATE TABLE files3d (

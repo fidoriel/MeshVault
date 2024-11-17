@@ -23,6 +23,7 @@ diesel::table! {
         origin -> Nullable<Text>,
         date_added -> Nullable<Timestamp>,
         images -> Text,
+        description -> Text,
     }
 }
 
