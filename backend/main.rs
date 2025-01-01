@@ -219,6 +219,26 @@ async fn convert_file(
                 return Err(StatusCode::UNPROCESSABLE_ENTITY);
             }
         },
+        Ok(FileType::IGES) => match result.to_iges(&mut connection, &state.config).await {
+            Ok(buffer) => {
+                file_ending = "iges";
+                buffer
+            }
+            Err(e) => {
+                debug!("Error converting file: {}", e);
+                return Err(StatusCode::UNPROCESSABLE_ENTITY);
+            }
+        },
+        Ok(FileType::STEP) => match result.to_step(&mut connection, &state.config).await {
+            Ok(buffer) => {
+                file_ending = "step";
+                buffer
+            }
+            Err(e) => {
+                debug!("Error converting file: {}", e);
+                return Err(StatusCode::UNPROCESSABLE_ENTITY);
+            }
+        },
         _ => return Err(StatusCode::UNPROCESSABLE_ENTITY),
     };
     let body = Body::from(buffer);

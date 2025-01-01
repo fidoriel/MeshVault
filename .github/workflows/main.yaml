@@ -113,6 +113,16 @@ jobs:
             - format_rs
 
         steps:
+            - name: Maximize build space
+              shell: bash
+              run: |
+                  df -h
+                  sudo rm -rf /usr/share/dotnet
+                  sudo rm -rf /usr/local/lib/android
+                  sudo rm -rf /opt/hostedtoolcache/CodeQL
+                  sudo rm -rf /usr/local/share/boost
+                  df -h
+
             - name: Check out repository code
               uses: actions/checkout@v4
 
@@ -144,7 +154,7 @@ jobs:
                   password: ${{ secrets.GITHUB_TOKEN }}
 
             - name: Build and push
-              uses: docker/build-push-action@v4
+              uses: docker/build-push-action@v6
               with:
                   context: .
                   push: true
@@ -152,3 +162,5 @@ jobs:
                   cache-to: type=gha,mode=max
                   tags: ${{ steps.meta.outputs.tags }}
                   platforms: linux/amd64,linux/arm64/v8
+                  build-args: |
+                    CACHE_BUST=${{ github.event.repository.updated_at }}
