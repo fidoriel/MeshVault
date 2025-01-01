@@ -37,6 +37,7 @@ pub enum FileType {
     THREEMF,
     OBJ,
     OTHER,
+    IGES,
 }
 
 #[derive(Debug)]
@@ -49,6 +50,7 @@ impl FromStr for FileType {
         match s.to_uppercase().as_str() {
             "STL" => Result::Ok(FileType::STL),
             "STEP" => Result::Ok(FileType::STEP),
+            "IGES" => Result::Ok(FileType::IGES),
             "3MF" | "THREEMF" => Result::Ok(FileType::THREEMF),
             "OBJ" => Result::Ok(FileType::OBJ),
             _ => Result::Ok(FileType::OTHER),
@@ -306,12 +308,22 @@ impl File3D {
     }
 
     pub fn stl_conversion_is_supported(&self) -> bool {
-        let supported_file_types = [FileType::STL, FileType::STEP, FileType::OBJ];
+        let supported_file_types = [FileType::STL, FileType::STEP, FileType::IGES, FileType::OBJ];
         supported_file_types.contains(&self.clone().file_type())
     }
 
     pub fn threemf_conversion_is_supported(&self) -> bool {
-        let supported_file_types = [FileType::STL, FileType::STEP, FileType::OBJ];
+        let supported_file_types = [FileType::STL, FileType::STEP, FileType::IGES, FileType::OBJ];
+        supported_file_types.contains(&self.clone().file_type())
+    }
+
+    pub fn step_conversion_is_supported(&self) -> bool {
+        let supported_file_types = [FileType::IGES];
+        supported_file_types.contains(&self.clone().file_type())
+    }
+
+    pub fn iges_conversion_is_supported(&self) -> bool {
+        let supported_file_types = [FileType::STEP];
         supported_file_types.contains(&self.clone().file_type())
     }
 
@@ -327,6 +339,7 @@ impl File3D {
         match self.clone().file_type() {
             FileType::STL => convert::astl_convert_to_bstl(&src_file),
             FileType::STEP => convert::save_as_stl(&convert::load_step(&src_file).unwrap()),
+            FileType::IGES => convert::save_as_stl(&convert::load_iges(&src_file).unwrap()),
             FileType::OBJ => convert::save_as_stl(&convert::load_obj(&src_file).unwrap()),
             _ => Err(anyhow::format_err!("unsupported file")),
         }
@@ -344,7 +357,38 @@ impl File3D {
         match self.clone().file_type() {
             FileType::STL => convert::save_as_threemf(&convert::load_stl(&src_file).unwrap()),
             FileType::STEP => convert::save_as_threemf(&convert::load_step(&src_file).unwrap()),
+            FileType::IGES => convert::save_as_threemf(&convert::load_iges(&src_file).unwrap()),
             FileType::OBJ => convert::save_as_threemf(&convert::load_obj(&src_file).unwrap()),
+            _ => Err(anyhow::format_err!("unsupported file")),
+        }
+    }
+
+    pub async fn to_iges<Conn>(
+        &self,
+        connection: &mut Conn,
+        config: &Config,
+    ) -> anyhow::Result<Vec<u8>>
+    where
+        Conn: AsyncConnection<Backend = diesel::sqlite::Sqlite>,
+    {
+        let src_file = self.get_file_path(connection, config).await;
+        match self.clone().file_type() {
+            FileType::STEP => convert::step_to_iges(&src_file),
+            _ => Err(anyhow::format_err!("unsupported file")),
+        }
+    }
+
+    pub async fn to_step<Conn>(
+        &self,
+        connection: &mut Conn,
+        config: &Config,
+    ) -> anyhow::Result<Vec<u8>>
+    where
+        Conn: AsyncConnection<Backend = diesel::sqlite::Sqlite>,
+    {
+        let src_file = self.get_file_path(connection, config).await;
+        match self.clone().file_type() {
+            FileType::IGES => convert::iges_to_step(&src_file),
             _ => Err(anyhow::format_err!("unsupported file")),
         }
     }
@@ -442,6 +486,8 @@ pub struct DetailedFileResponse {
     pub file_size: String,
     pub stl_conversion_is_supported: bool,
     pub threemf_conversion_is_supported: bool,
+    pub iges_conversion_is_supported: bool,
+    pub step_conversion_is_supported: bool,
 }
 
 impl DetailedFileResponse {
@@ -462,6 +508,8 @@ impl DetailedFileResponse {
             file_size: human_bytes::human_bytes(file.file_size_bytes as f64),
             stl_conversion_is_supported: file.stl_conversion_is_supported(),
             threemf_conversion_is_supported: file.threemf_conversion_is_supported(),
+            iges_conversion_is_supported: file.iges_conversion_is_supported(),
+            step_conversion_is_supported: file.step_conversion_is_supported(),
         }
     }
 }

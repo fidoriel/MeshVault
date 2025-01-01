@@ -380,6 +380,30 @@ function File({ file, reload: reload }: { file: DetailedFileResponse; reload: ()
                                         Convert to 3mf
                                     </DropdownMenuItem>
                                 )}
+                                {file.step_conversion_is_supported && (
+                                    <DropdownMenuItem
+                                        onClick={() =>
+                                            saveAs(
+                                                BACKEND_BASE_URL + `/api/file/${file.id}/convert/step`,
+                                                file.name + ".step",
+                                            )
+                                        }
+                                    >
+                                        Convert to step
+                                    </DropdownMenuItem>
+                                )}
+                                {file.iges_conversion_is_supported && (
+                                    <DropdownMenuItem
+                                        onClick={() =>
+                                            saveAs(
+                                                BACKEND_BASE_URL + `/api/file/${file.id}/convert/iges`,
+                                                file.name + ".iges",
+                                            )
+                                        }
+                                    >
+                                        Convert to iges
+                                    </DropdownMenuItem>
+                                )}
                             </DropdownMenuContent>
                         </DropdownMenu>
                     </div>

@@ -16,9 +16,7 @@ pub fn load_stl(stl_path: &PathBuf) -> anyhow::Result<IndexedMesh> {
     stl_io::read_stl(&mut file).map_err(|e| anyhow::anyhow!(e))
 }
 
-pub fn load_step(step_path: &PathBuf) -> anyhow::Result<IndexedMesh> {
-    let shape = Shape::read_step(step_path)?;
-
+fn occt_shape_to_indexed_mesh(shape: &Shape) -> anyhow::Result<IndexedMesh> {
     let temp_stl_path = std::env::temp_dir().join(format!("tmp_{}.stl", uuid::Uuid::new_v4()));
     shape.write_stl(&temp_stl_path)?;
 
@@ -27,6 +25,36 @@ pub fn load_step(step_path: &PathBuf) -> anyhow::Result<IndexedMesh> {
 
     std::fs::remove_file(&temp_stl_path)?;
     result
+}
+
+pub fn load_step(step_path: &PathBuf) -> anyhow::Result<IndexedMesh> {
+    let shape = Shape::read_step(step_path)?;
+    occt_shape_to_indexed_mesh(&shape)
+}
+
+pub fn load_iges(iges_path: &PathBuf) -> anyhow::Result<IndexedMesh> {
+    let shape = Shape::read_iges(iges_path)?;
+    occt_shape_to_indexed_mesh(&shape)
+}
+
+pub fn step_to_iges(step_path: &PathBuf) -> anyhow::Result<Vec<u8>> {
+    let shape = Shape::read_step(step_path)?;
+    let temp_path = std::env::temp_dir().join(format!("tmp_{}.iges", uuid::Uuid::new_v4()));
+    shape.write_iges(&temp_path)?;
+
+    let iges_data = std::fs::read(&temp_path)?;
+    std::fs::remove_file(&temp_path)?;
+    Ok(iges_data)
+}
+
+pub fn iges_to_step(iges_path: &PathBuf) -> anyhow::Result<Vec<u8>> {
+    let shape = Shape::read_iges(iges_path)?;
+    let temp_path = std::env::temp_dir().join(format!("tmp_{}.iges", uuid::Uuid::new_v4()));
+    shape.write_step(&temp_path)?;
+
+    let step_data = std::fs::read(&temp_path)?;
+    std::fs::remove_file(&temp_path)?;
+    Ok(step_data)
 }
 
 pub fn load_obj(path: &PathBuf) -> anyhow::Result<IndexedMesh> {
