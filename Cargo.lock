@@ -2105,7 +2105,7 @@ checksum = "e2db585e1d738fc771bf08a151420d3ed193d9d895a36df7f6f8a9456b911ddc"
 [[package]]
 name = "kicad-parser"
 version = "0.1.0"
-source = "git+https://github.com/fidoriel/opencascade-rs?branch=fix-cross-compile-chain-for-install#7ba3d562c76175c7128e134bfd96d17489eede6b"
+source = "git+https://github.com/bschwind/opencascade-rs.git#436fec8edc8e4ec5033ec2424fd1ded1ceae6b40"
 dependencies = [
  "sexp",
  "thiserror",
@@ -2931,7 +2931,8 @@ dependencies = [
 [[package]]
 name = "occt-sys"
 version = "0.5.1"
-source = "git+https://github.com/fidoriel/opencascade-rs?branch=fix-cross-compile-chain-for-install#7ba3d562c76175c7128e134bfd96d17489eede6b"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f21b287cafb512e8eee92b8961bf7c39d196fd03de5e17da51843cc106ae62bc"
 dependencies = [
  "cmake",
 ]
@@ -2945,7 +2946,7 @@ checksum = "1261fe7e33c73b354eab43b1273a57c8f967d0391e80353e51f764ac02cf6775"
 [[package]]
 name = "opencascade"
 version = "0.2.0"
-source = "git+https://github.com/fidoriel/opencascade-rs?branch=fix-cross-compile-chain-for-install#7ba3d562c76175c7128e134bfd96d17489eede6b"
+source = "git+https://github.com/bschwind/opencascade-rs.git#436fec8edc8e4ec5033ec2424fd1ded1ceae6b40"
 dependencies = [
  "cxx",
  "glam",
@@ -2957,7 +2958,7 @@ dependencies = [
 [[package]]
 name = "opencascade-sys"
 version = "0.2.0"
-source = "git+https://github.com/fidoriel/opencascade-rs?branch=fix-cross-compile-chain-for-install#7ba3d562c76175c7128e134bfd96d17489eede6b"
+source = "git+https://github.com/bschwind/opencascade-rs.git#436fec8edc8e4ec5033ec2424fd1ded1ceae6b40"
 dependencies = [
  "cmake",
  "cxx",
