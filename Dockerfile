@@ -44,10 +44,12 @@ RUN if [ "$TARGETPLATFORM" = "linux/arm64" ]; then \
         export PKG_CONFIG_SYSROOT_DIR=/usr/aarch64-linux-gnu && \
         export PKG_CONFIG_PATH=/usr/aarch64-linux-gnu/lib/pkgconfig && \
         export TARGET_CHAIN=aarch64-unknown-linux-gnu; \
+        rm target/$TARGET_CHAIN/release/meshvault; \
     elif [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
         export PKG_CONFIG_SYSROOT_DIR=/usr/x86_64-linux-gnu && \
         export PKG_CONFIG_PATH=/usr/x86_64-linux-gnu/lib/pkgconfig && \
         export TARGET_CHAIN=x86_64-unknown-linux-gnu; \
+        rm target/$TARGET_CHAIN/release/meshvault; \
     fi && \
     cargo build --release --locked --target $TARGET_CHAIN && \
     mv target/$TARGET_CHAIN/release/meshvault .
