@@ -380,7 +380,7 @@ async fn main() {
         .init();
 
     match serde_json::to_string(&config) {
-        Ok(json) => debug!("Config: {}", json),
+        Ok(json) => debug!("Config applied: {}", json),
         Err(e) => error!("Failed to serialize config: {}", e),
     }
 

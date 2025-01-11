@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM rust:1.82-bookworm AS rust-builder
+FROM --platform=$BUILDPLATFORM rust:1.84-bookworm AS rust-builder
 
 RUN apt-get update -y && apt-get install gcc-aarch64-linux-gnu g++-aarch64-linux-gnu gcc-x86-64-linux-gnu libc6-dev-arm64-cross -y
 
@@ -54,7 +54,7 @@ RUN if [ "$TARGETPLATFORM" = "linux/arm64" ]; then \
 
 
 
-FROM --platform=$BUILDPLATFORM rust:1.82-bookworm AS rust-bindings-builder
+FROM --platform=$BUILDPLATFORM rust:1.84-bookworm AS rust-bindings-builder
 
 COPY Cargo.toml typeshare.toml ./
 RUN cargo install typeshare-cli
@@ -78,7 +78,7 @@ RUN npm run build
 
 
 
-FROM debian:bookworm AS target-image
+FROM debian:bookworm-slim AS target-image
 
 ENV DATABASE_URL=/meshvault/data/db.sqlite3
 ENV LIBRARIES_PATH=/meshvault/3dassets
@@ -99,4 +99,4 @@ COPY --from=rust-builder /code/meshvault /meshvault/meshvault
 RUN chown -R 1000:1000 /meshvault
 USER 1000
 EXPOSE 51100
-ENTRYPOINT [ "./meshvault" ]
+CMD [ "./meshvault" ]
