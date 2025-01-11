@@ -113,6 +113,16 @@ jobs:
             - format_rs
 
         steps:
+            - name: Maximize build space
+              shell: bash
+              run: |
+                  df -h
+                  sudo rm -rf /usr/share/dotnet
+                  sudo rm -rf /usr/local/lib/android
+                  sudo rm -rf /opt/hostedtoolcache/CodeQL
+                  sudo rm -rf /usr/local/share/boost
+                  df -h
+
             - name: Check out repository code
               uses: actions/checkout@v4
 
