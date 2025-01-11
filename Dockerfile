@@ -44,12 +44,10 @@ RUN if [ "$TARGETPLATFORM" = "linux/arm64" ]; then \
         export PKG_CONFIG_SYSROOT_DIR=/usr/aarch64-linux-gnu && \
         export PKG_CONFIG_PATH=/usr/aarch64-linux-gnu/lib/pkgconfig && \
         export TARGET_CHAIN=aarch64-unknown-linux-gnu; \
-        rm target/$TARGET_CHAIN/release/meshvault; \
     elif [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
         export PKG_CONFIG_SYSROOT_DIR=/usr/x86_64-linux-gnu && \
         export PKG_CONFIG_PATH=/usr/x86_64-linux-gnu/lib/pkgconfig && \
         export TARGET_CHAIN=x86_64-unknown-linux-gnu; \
-        rm target/$TARGET_CHAIN/release/meshvault; \
     fi && \
     cargo build --release --locked --target $TARGET_CHAIN && \
     mv target/$TARGET_CHAIN/release/meshvault .
@@ -88,7 +86,7 @@ ENV HOST="0.0.0.0"
 ENV PORT="51100"
 
 RUN apt-get update && \
-    apt-get install -y sqlite3 && \
+    apt-get install -y sqlite3 curl && \
     apt-get install -y libosmesa6-dev libfreetype6 libfontconfig1 && \
     rm -rf /var/lib/apt/lists/*
 
@@ -101,4 +99,7 @@ COPY --from=rust-builder /code/meshvault /meshvault/meshvault
 RUN chown -R 1000:1000 /meshvault
 USER 1000
 EXPOSE 51100
+
+HEALTHCHECK CMD curl -f http://localhost:${PORT}/ || exit 1
+
 CMD [ "./meshvault" ]
