@@ -372,9 +372,11 @@ async fn fallback_404() -> impl IntoResponse {
 
 #[tokio::main]
 async fn main() {
+    print!("Starting...");
     dotenvy::dotenv().ok();
     let config = parse_config();
 
+    print!("Init Loggin...");
     tracing_subscriber::fmt()
         .with_env_filter(EnvFilter::new(config.log_level.clone()))
         .init();
