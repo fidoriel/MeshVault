@@ -124,6 +124,9 @@ jobs:
                   sudo docker image prune --all --force
                   sudo docker builder prune -a
                   df -h
+
+            - name: Set up QEMU
+              uses: docker/setup-qemu-action@v3
                 
             - name: Check out repository code
               uses: actions/checkout@v4
