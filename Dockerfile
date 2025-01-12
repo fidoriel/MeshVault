@@ -35,7 +35,7 @@ RUN if [ "$TARGETPLATFORM" = "linux/arm64" ]; then \
         apt-get update -y && \
         apt-get install -y libsqlite3-dev:arm64 libfreetype6-dev:arm64 libfontconfig1-dev:arm64 libexpat1-dev:arm64 && \
         export PKG_CONFIG_SYSROOT_DIR=/usr/aarch64-linux-gnu && \
-        export PKG_CONFIG_PATH=/usr/aarch64-linux-gnu/lib/pkgconfig && \
+        export PKG_CONFIG_PATH="/usr/aarch64-linux-gnu/lib/pkgconfig:/usr/share/pkgconfig" && \
         export TARGET_CHAIN=aarch64-unknown-linux-gnu; \
     elif [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
         dpkg --add-architecture amd64 && \
@@ -53,11 +53,11 @@ COPY migrations/ migrations/
 
 RUN if [ "$TARGETPLATFORM" = "linux/arm64" ]; then \
         export PKG_CONFIG_SYSROOT_DIR=/usr/aarch64-linux-gnu && \
-        export PKG_CONFIG_PATH=/usr/aarch64-linux-gnu/lib/pkgconfig && \
+        export PKG_CONFIG_PATH="/usr/aarch64-linux-gnu/lib/pkgconfig:/usr/share/pkgconfig" && \
         export TARGET_CHAIN=aarch64-unknown-linux-gnu; \
     elif [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
         export PKG_CONFIG_SYSROOT_DIR=/usr/x86_64-linux-gnu && \
-        export PKG_CONFIG_PATH=/usr/x86_64-linux-gnu/lib/pkgconfig && \
+        export PKG_CONFIG_PATH="/usr/x86_64-linux-gnu/pkgconfig:/usr/share/pkgconfig" && \
         export TARGET_CHAIN=x86_64-unknown-linux-gnu; \
     fi && \
     cargo build --release --locked --target $TARGET_CHAIN && \
