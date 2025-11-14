@@ -10,6 +10,7 @@ use axum::{
 };
 use axum::{http, Json};
 use diesel::prelude::*;
+use diesel::query_builder::AsQuery;
 use diesel::sqlite::SqliteConnection;
 use diesel_async::pooled_connection::bb8::Pool;
 use diesel_async::pooled_connection::AsyncDieselConnectionManager;
@@ -314,6 +315,12 @@ async fn list_models(
         .into_iter()
         .filter_map(|license| license)
         .collect();
+
+    let page = params.page.unwrap_or(1);
+    let page_size = params.page_size.unwrap_or(100);
+    let offset = (page - 1) * page_size;
+
+    models = models.limit(page_size).offset(offset);
 
     let response = ModelResponseList::from_model_3d(
         models.load::<Model3D>(&mut connection).await.unwrap(),

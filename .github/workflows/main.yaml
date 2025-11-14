@@ -163,4 +163,4 @@ jobs:
                   tags: ${{ steps.meta.outputs.tags }}
                   platforms: linux/amd64,linux/arm64/v8
                   build-args: |
-                    CACHE_BUST=${{ github.event.repository.updated_at }}
+                      CACHE_BUST=${{ github.event.repository.updated_at }}

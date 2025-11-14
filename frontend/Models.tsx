@@ -1,18 +1,9 @@
-import React, { ReactNode, useEffect } from "react";
+import React, { ReactNode, useEffect, useRef, useCallback } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Heart, Bookmark, ChevronDown, ChevronRight } from "lucide-react";
+import { Heart, Bookmark, ChevronDown, ChevronRight, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import {
-    Pagination,
-    PaginationContent,
-    PaginationEllipsis,
-    PaginationItem,
-    PaginationLink,
-    PaginationNext,
-    PaginationPrevious,
-} from "./components/ui/pagination";
 import { ModelResponse, ModelResponseList } from "./bindings";
 import { BACKEND_BASE_URL } from "./lib/api";
 import { useTheme } from "./components/theme-provider";
@@ -71,47 +62,98 @@ export function ModelCard({ model }: { model: ModelResponse }) {
 }
 
 function Models() {
-    const [models, setModels] = useState<ModelResponseList>();
+    const [models, setModels] = useState<ModelResponse[]>([]);
+    const [licenses, setLicenses] = useState<string[]>([]);
     const [selectedLicenses, setSelectedLicenses] = useState<string[]>([]);
+    const [page, setPage] = useState(1);
+    const [isLoading, setIsLoading] = useState(false);
+    const [hasMore, setHasMore] = useState(true);
+    const observerTarget = useRef<HTMLDivElement>(null);
 
-    async function getModels() {
-        fetch(BACKEND_BASE_URL + "/api/models/list", {
-            method: "GET",
-        })
-            .then((response) => {
+    const PAGE_SIZE = 1;
+
+    const fetchModels = useCallback(
+        async (pageNum: number, reset: boolean = false) => {
+            if (isLoading) return;
+
+            setIsLoading(true);
+            try {
+                const selectedLicensesString = selectedLicenses.join(",");
+                const queryParams = new URLSearchParams({
+                    page: pageNum.toString(),
+                    page_size: PAGE_SIZE.toString(),
+                });
+
+                if (selectedLicensesString) {
+                    queryParams.append("licenses", selectedLicensesString);
+                }
+
+                const response = await fetch(`${BACKEND_BASE_URL}/api/models/list?${queryParams.toString()}`, {
+                    method: "GET",
+                });
+
                 if (!response.ok) {
                     throw new Error("Network response was not ok");
                 }
-                return response.json();
-            })
-            .then((response_models: ModelResponseList) => {
-                setModels(response_models);
-            })
-            .catch((error) => {
-                console.error("Fetch error:", error);
-            });
-    }
 
-    async function filterModels() {
-        const selectedLicensesString = selectedLicenses.join(",");
-        const queryString = selectedLicensesString ? `?licenses=${selectedLicensesString}` : "";
+                const responseModels: ModelResponseList = await response.json();
 
-        fetch(BACKEND_BASE_URL + "/api/models/list" + queryString, {
-            method: "GET",
-        })
-            .then((response) => {
-                if (!response.ok) {
-                    throw new Error("Network response was not ok");
+                setLicenses(responseModels.licenses);
+
+                if (reset) {
+                    setModels(responseModels.models);
+                    setHasMore(responseModels.models.length === PAGE_SIZE);
+                } else {
+                    setModels((prevModels) => {
+                        const newModels = [...prevModels, ...responseModels.models];
+                        setHasMore(responseModels.models.length === PAGE_SIZE);
+                        return newModels;
+                    });
                 }
-                return response.json();
-            })
-            .then((response_models: ModelResponseList) => {
-                setModels(response_models);
-            })
-            .catch((error) => {
+            } catch (error) {
                 console.error("Fetch error:", error);
-            });
-    }
+            } finally {
+                setIsLoading(false);
+            }
+        },
+        [selectedLicenses, isLoading],
+    );
+
+    useEffect(() => {
+        setModels([]);
+        setPage(1);
+        setHasMore(true);
+        fetchModels(1, true);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [selectedLicenses]);
+
+    useEffect(() => {
+        document.title = "MeshVault";
+    }, []);
+
+    useEffect(() => {
+        const observer = new IntersectionObserver(
+            (entries) => {
+                if (entries[0].isIntersecting && hasMore && !isLoading) {
+                    const nextPage = page + 1;
+                    setPage(nextPage);
+                    fetchModels(nextPage, false);
+                }
+            },
+            { threshold: 0.1 },
+        );
+
+        const currentTarget = observerTarget.current;
+        if (currentTarget) {
+            observer.observe(currentTarget);
+        }
+
+        return () => {
+            if (currentTarget) {
+                observer.unobserve(currentTarget);
+            }
+        };
+    }, [hasMore, isLoading, page, fetchModels]);
 
     const handleLicenseChange = (license: string) => {
         setSelectedLicenses((prevSelected) =>
@@ -120,16 +162,6 @@ function Models() {
                 : [...prevSelected, license],
         );
     };
-
-    useEffect(() => {
-        getModels();
-        document.title = "MeshVault";
-    }, []);
-
-    useEffect(() => {
-        console.log(selectedLicenses);
-        filterModels();
-    }, [selectedLicenses]);
 
     return (
         <div className="min-h-screen bg-background text-foreground">
@@ -143,7 +175,7 @@ function Models() {
                         <div className="bg-card rounded-lg p-4 space-y-4 border border-border">
                             <FilterSection title="License">
                                 <div className="space-y-2 pl-4">
-                                    {models?.licenses.map((license) => (
+                                    {licenses.map((license) => (
                                         <div className="flex items-center space-x-2" key={license}>
                                             <Checkbox
                                                 id={license}
@@ -165,27 +197,33 @@ function Models() {
 
                     <div className="flex-1">
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                            {models?.models.map((model, index) => <ModelCard key={index} model={model} />)}
+                            {models.map((model, index) => (
+                                <ModelCard key={index} model={model} />
+                            ))}
                         </div>
+
+                        {/* Loading indicator */}
+                        {isLoading && (
+                            <div className="flex justify-center items-center py-8">
+                                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                            </div>
+                        )}
+
+                        {/* Intersection observer target */}
+                        <div ref={observerTarget} className="h-4" />
+
+                        {/* Show message when all models are loaded */}
+                        {!hasMore && models.length > 0 && (
+                            <div className="text-center py-8 text-muted-foreground">
+                                All models loaded ({models.length} total)
+                            </div>
+                        )}
+
+                        {/* Show message when no models found */}
+                        {!isLoading && models.length === 0 && (
+                            <div className="text-center py-8 text-muted-foreground">No models found</div>
+                        )}
                     </div>
-                </div>
-                <div className="pt-6">
-                    <Pagination>
-                        <PaginationContent>
-                            <PaginationItem>
-                                <PaginationPrevious href="#" />
-                            </PaginationItem>
-                            <PaginationItem>
-                                <PaginationLink href="#">1</PaginationLink>
-                            </PaginationItem>
-                            <PaginationItem>
-                                <PaginationEllipsis />
-                            </PaginationItem>
-                            <PaginationItem>
-                                <PaginationNext href="#" />
-                            </PaginationItem>
-                        </PaginationContent>
-                    </Pagination>
                 </div>
             </div>
         </div>
