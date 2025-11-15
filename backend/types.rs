@@ -584,6 +584,8 @@ impl DetailedModelResponse {
 pub struct ListModelParams {
     pub q: Option<String>,
     pub licenses: Option<String>,
+    pub page: Option<i64>,
+    pub page_size: Option<i64>,
 }
 
 impl Default for ListModelParams {
@@ -591,6 +593,8 @@ impl Default for ListModelParams {
         Self {
             q: None,
             licenses: None,
+            page: None,
+            page_size: None,
         }
     }
 }
