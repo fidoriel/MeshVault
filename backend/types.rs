@@ -90,6 +90,7 @@ pub struct Model3D {
     pub date_added: Option<NaiveDateTime>,
     pub images: String,
     pub description: String,
+    pub favourite: bool,
 }
 
 impl Model3D {
@@ -154,6 +155,7 @@ pub struct ModelResponse {
     pub origin: Option<String>,
     pub images: Vec<String>,
     pub description: String,
+    pub favourite: bool,
 }
 
 impl ModelResponse {
@@ -194,6 +196,7 @@ impl ModelResponse {
             origin: model.origin.clone(),
             images,
             description: model.description.clone(),
+            favourite: model.favourite,
         })
     }
 }
@@ -241,6 +244,7 @@ pub struct NewModel3D {
     pub origin: Option<String>,
     pub images: String,
     pub description: String,
+    pub favourite: bool,
 }
 
 impl NewModel3D {
@@ -259,6 +263,7 @@ impl NewModel3D {
             origin: Some(pack.origin.clone()),
             images: pathbuf_vec_to_comma_separated(image_paths),
             description: readme,
+            favourite: false,
         })
     }
 
@@ -527,6 +532,7 @@ pub struct DetailedModelResponse {
     pub images: Vec<String>,
     pub files: Vec<DetailedFileResponse>,
     pub description: String,
+    pub favourite: bool,
 }
 
 impl DetailedModelResponse {
@@ -576,6 +582,7 @@ impl DetailedModelResponse {
             images,
             files: detailed_files,
             description: model.description.clone(),
+            favourite: model.favourite,
         })
     }
 }
@@ -586,6 +593,7 @@ pub struct ListModelParams {
     pub licenses: Option<String>,
     pub page: Option<i64>,
     pub page_size: Option<i64>,
+    pub favourite: Option<bool>,
 }
 
 impl Default for ListModelParams {
@@ -595,6 +603,7 @@ impl Default for ListModelParams {
             licenses: None,
             page: None,
             page_size: None,
+            favourite: None,
         }
     }
 }

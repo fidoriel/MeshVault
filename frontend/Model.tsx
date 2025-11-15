@@ -196,6 +196,22 @@ function ImageGallery({ model }: { model: DetailedModelResponse }) {
 }
 
 function InfoCard({ model, refresh }: { model: DetailedModelResponse; refresh: () => void }) {
+    const [favourite, setFavourite] = useState(model.favourite);
+
+    const handleLikeClick = async () => {
+        try {
+            const response = await fetch(BACKEND_BASE_URL + `/api/model/${model.name}/like`, {
+                method: "POST",
+            });
+            if (response.ok) {
+                const data = await response.json();
+                setFavourite(data.favourite);
+            }
+        } catch (error) {
+            console.error("Failed to toggle like:", error);
+        }
+    };
+
     return (
         <div className="w-full max-w-lg px-1">
             <div className="flex justify-between items-start mb-6">
@@ -232,8 +248,12 @@ function InfoCard({ model, refresh }: { model: DetailedModelResponse; refresh: (
                     Download
                 </Button>
                 <div className="grid grid-cols-3 gap-2">
-                    <Button variant="outline" className="w-full">
-                        <Heart className="h-5 w-5" />
+                    <Button variant="outline" className="w-full" onClick={handleLikeClick}>
+                        {favourite ? (
+                            <Heart fill="red" className="h-5 w-5 text-red-500" />
+                        ) : (
+                            <Heart className="h-5 w-5" />
+                        )}
                     </Button>
                     <Button
                         variant="outline"

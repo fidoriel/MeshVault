@@ -10,7 +10,7 @@ services:
         ports:
             - "127.0.0.1:51100:51100"
         environment:
-            - DATA_DIR=./docker_data
+            - DATA_DIR=./local_data
             - LIBRARIES_PATH=./3dassets
             - HOST=0.0.0.0
         command: ["cargo", "run"]

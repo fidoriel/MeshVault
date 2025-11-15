@@ -186,6 +186,28 @@ async fn delete_file(State(state): State<AppState>, Path(pk): Path<i32>) -> impl
     }
 }
 
+async fn toggle_like(State(state): State<AppState>, Path(slug): Path<String>) -> impl IntoResponse {
+    let mut connection = state.pool.get().await.unwrap();
+
+    let model = models3d::dsl::models3d
+        .filter(models3d::dsl::name.eq(slug))
+        .first::<Model3D>(&mut connection)
+        .await
+        .unwrap();
+
+    let new_favourite = !model.favourite;
+    diesel::update(models3d::dsl::models3d.filter(models3d::dsl::id.eq(model.id)))
+        .set(models3d::dsl::favourite.eq(new_favourite))
+        .execute(&mut connection)
+        .await
+        .unwrap();
+
+    (
+        StatusCode::OK,
+        Json(serde_json::json!({"favourite": new_favourite})),
+    )
+}
+
 async fn convert_file(
     State(state): State<AppState>,
     Path((pk, target_type)): Path<(i32, String)>,
@@ -305,6 +327,10 @@ async fn list_models(
         }
     }
 
+    if let Some(favourite) = params.favourite {
+        models = models.filter(models3d::dsl::favourite.eq(favourite));
+    }
+
     let licenses_to_select: Vec<String> = models3d::dsl::models3d
         .select(models3d::dsl::license)
         .distinct()
@@ -412,6 +438,7 @@ async fn main() {
         .route("/model/:slug/refresh", get(refresh_model))
         .route("/model/:slug/update", post(upload::handle_upload_update))
         .route("/model/:slug/delete", post(delete_model))
+        .route("/model/:slug/like", post(toggle_like))
         .route("/file/:id/delete", post(delete_file))
         .route("/file/:id/convert/:target_type", get(convert_file))
         .route("/download/:folder", get(handle_zip_download))

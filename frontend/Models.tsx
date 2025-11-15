@@ -6,7 +6,6 @@ import { useState } from "react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ModelResponse, ModelResponseList } from "./bindings";
 import { BACKEND_BASE_URL } from "./lib/api";
-import { useTheme } from "./components/theme-provider";
 import { Link } from "react-router-dom";
 import { Checkbox } from "./components/ui/checkbox";
 
@@ -26,10 +25,25 @@ function FilterSection({ title, children }: { title: string; children: ReactNode
 
 export function ModelCard({ model }: { model: ModelResponse }) {
     const image = model.images && model.images.length > 0 ? `${BACKEND_BASE_URL}${model.images[0]}` : null;
-    const { theme } = useTheme();
-    const fillColor = theme === "dark" ? "white" : "black";
-    const heart = true;
+    const [favourite, setFavourite] = useState(model.favourite);
     const detail_link = `/model/${model.name}`;
+
+    const handleLikeClick = async (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        try {
+            const response = await fetch(BACKEND_BASE_URL + `/api/model/${model.name}/like`, {
+                method: "POST",
+            });
+            if (response.ok) {
+                const data = await response.json();
+                setFavourite(data.favourite);
+            }
+        } catch (error) {
+            console.error("Failed to toggle like:", error);
+        }
+    };
 
     return (
         <Card className="w-full bg-background border-border hover:shadow-lg transition-shadow duration-200">
@@ -48,9 +62,16 @@ export function ModelCard({ model }: { model: ModelResponse }) {
                 </Link>
                 <div className="flex items-center justify-between text-muted-foreground text-sm">
                     <div className="flex items-center gap-4">
-                        <div className="flex items-center gap-1">
-                            {heart ? <Heart fill={fillColor} className="w-4 h-4" /> : <Heart className="w-4 h-4" />}
-                        </div>
+                        <button
+                            onClick={handleLikeClick}
+                            className="flex items-center gap-1 hover:text-red-500 transition-colors"
+                        >
+                            {favourite ? (
+                                <Heart fill="red" className="w-4 h-4 text-red-500" />
+                            ) : (
+                                <Heart className="w-4 h-4" />
+                            )}
+                        </button>
                     </div>
                     <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
                         <Bookmark className="w-4 h-4" />
