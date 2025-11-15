@@ -16,6 +16,7 @@ import { Toaster } from "./components/ui/toaster";
 import EditModel from "./EditModel";
 import SearchView from "./SearchView";
 import NotFound from "./NotFound";
+import FavouriteModels from "./FavouriteModels";
 
 const getFillColor = (theme: string) => {
     if (theme === "system") {
@@ -77,6 +78,9 @@ function Navbar({ searchValue, setSearchValue }: { searchValue: string; setSearc
                     <NavLink to="/" className={({ isActive }) => (isActive ? ACTIVE_NAV : NON_ACTIVE_NAV)}>
                         Home
                     </NavLink>
+                    <NavLink to="/favourite" className={({ isActive }) => (isActive ? ACTIVE_NAV : NON_ACTIVE_NAV)}>
+                        <span className="flex items-center gap-1">Favourites</span>
+                    </NavLink>
                     <NavLink to="/modelpack" className={({ isActive }) => (isActive ? ACTIVE_NAV : NON_ACTIVE_NAV)}>
                         About ModelPack
                     </NavLink>
@@ -113,6 +117,7 @@ function App() {
                         <Route path="/model/:slug" element={<Model />} />
                         <Route path="/model/:slug/edit" element={<EditModel />} />
                         <Route path="/modelpack" element={<AboutModelPack />} />
+                        <Route path="/favourite" element={<FavouriteModels />} />
                         <Route
                             path="/search"
                             element={<SearchView searchValue={searchValue} setSearchValue={setSearchValue} />}

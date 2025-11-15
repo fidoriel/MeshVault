@@ -24,6 +24,7 @@ diesel::table! {
         date_added -> Nullable<Timestamp>,
         images -> Text,
         description -> Text,
+        favourite -> Bool,
     }
 }
 
