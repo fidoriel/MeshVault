@@ -3,7 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Download, Heart, MoreVertical, RefreshCcw, Bookmark } from "lucide-react";
 
 import { useState, useEffect, useRef } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, Link } from "react-router-dom";
 import { DetailedFileResponse, DetailedModelResponse } from "./bindings";
 import { BACKEND_BASE_URL } from "./lib/api";
 import { saveAs } from "file-saver";
@@ -223,7 +223,12 @@ function InfoCard({ model, refresh }: { model: DetailedModelResponse; refresh: (
 
             <div className="mb-6">
                 <div className="space-y-4">
-                    <div className="font-medium text-gray-400">{model.author}</div>
+                    <Link 
+                        to={`/?author=${encodeURIComponent(model.author || "")}`}
+                        className="font-medium text-gray-400 hover:text-primary hover:underline cursor-pointer inline-block"
+                    >
+                        {model.author}
+                    </Link>
                     <div className="flex gap-2">
                         <Button variant="outline" size="sm" className="h-8">
                             Printables
@@ -276,7 +281,7 @@ function InfoCard({ model, refresh }: { model: DetailedModelResponse; refresh: (
                 </div>
                 <div>
                     <span className="font-bold">Origin URL:</span>
-                    <a href={model.origin} className="text-blue-500 hover:underline ml-1">
+                    <a href={model.origin || ""} className="text-blue-500 hover:underline ml-1">
                         {model.origin}
                     </a>
                 </div>

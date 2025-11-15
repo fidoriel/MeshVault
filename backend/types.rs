@@ -590,6 +590,7 @@ impl DetailedModelResponse {
 #[derive(Deserialize)]
 pub struct ListModelParams {
     pub q: Option<String>,
+    pub author: Option<String>,
     pub licenses: Option<String>,
     pub page: Option<i64>,
     pub page_size: Option<i64>,
@@ -600,6 +601,7 @@ impl Default for ListModelParams {
     fn default() -> Self {
         Self {
             q: None,
+            author: None,
             licenses: None,
             page: None,
             page_size: None,

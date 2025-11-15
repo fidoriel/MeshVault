@@ -6,7 +6,7 @@ import { useState } from "react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ModelResponse, ModelResponseList } from "./bindings";
 import { BACKEND_BASE_URL } from "./lib/api";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { Checkbox } from "./components/ui/checkbox";
 
 function FilterSection({ title, children }: { title: string; children: ReactNode }) {
@@ -55,7 +55,12 @@ export function ModelCard({ model }: { model: ModelResponse }) {
             </CardContent>
             <div className="p-3">
                 <div className="flex items-center gap-2 mb-2">
-                    <span className="text-sm text-muted-foreground">{model.author}</span>
+                    <Link 
+                        to={`/?author=${encodeURIComponent(model.author || "")}`}
+                        className="text-sm text-muted-foreground hover:text-primary hover:underline"
+                    >
+                        {model.author}
+                    </Link>
                 </div>
                 <Link to={detail_link}>
                     <h3 className="text-sm text-foreground mb-3">{model.title}</h3>
@@ -83,6 +88,9 @@ export function ModelCard({ model }: { model: ModelResponse }) {
 }
 
 function Models() {
+    const [searchParams] = useSearchParams();
+    const authorFilter = searchParams.get("author");
+    
     const [models, setModels] = useState<ModelResponse[]>([]);
     const [licenses, setLicenses] = useState<string[]>([]);
     const [selectedLicenses, setSelectedLicenses] = useState<string[]>([]);
@@ -107,6 +115,10 @@ function Models() {
 
                 if (selectedLicensesString) {
                     queryParams.append("licenses", selectedLicensesString);
+                }
+
+                if (authorFilter) {
+                    queryParams.append("author", authorFilter);
                 }
 
                 const response = await fetch(`${BACKEND_BASE_URL}/api/models/list?${queryParams.toString()}`, {
@@ -137,7 +149,7 @@ function Models() {
                 setIsLoading(false);
             }
         },
-        [selectedLicenses, isLoading],
+        [selectedLicenses, authorFilter, isLoading],
     );
 
     useEffect(() => {
@@ -146,7 +158,7 @@ function Models() {
         setHasMore(true);
         fetchModels(1, true);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [selectedLicenses]);
+    }, [selectedLicenses, authorFilter]);
 
     useEffect(() => {
         document.title = "MeshVault";
@@ -188,7 +200,9 @@ function Models() {
         <div className="min-h-screen bg-background text-foreground">
             <div className="max-w-screen-2xl mx-auto p-3">
                 <div className="flex items-center justify-between mb-6">
-                    <h1 className="text-3xl font-bold">Models</h1>
+                    <h1 className="text-3xl font-bold">
+                        {authorFilter ? `Models by ${authorFilter}` : "Models"}
+                    </h1>
                 </div>
 
                 <div className="flex gap-6">
@@ -252,3 +266,4 @@ function Models() {
 }
 
 export default Models;
+// temp change for review

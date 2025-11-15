@@ -311,6 +311,11 @@ async fn list_models(
         );
     }
 
+    if let Some(ref author) = params.author {
+        let pattern = format!("%{}%", author);
+        models = models.filter(models3d::dsl::author.like(pattern));
+    }
+
     if let Some(licenses) = params.licenses {
         let split_licenses: Vec<Option<String>> = licenses
             .clone()
