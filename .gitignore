@@ -61,7 +61,6 @@ dist-ssr
 *.db
 *.sqlite
 *.sqlite3
-docker_data/*
 local_data/*
 meshvault
 compressed_data/*
