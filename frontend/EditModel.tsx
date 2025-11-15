@@ -162,6 +162,10 @@ function EditModel() {
         getModel();
     }, [slug]);
 
+    useEffect(() => {
+        document.title = "Edit Model - MeshVault";
+    }, []);
+
     return (
         <div className="min-h-screen bg-background text-foreground">
             <div className="max-w-screen-2xl mx-auto p-3">

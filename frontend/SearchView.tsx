@@ -27,7 +27,7 @@ function SearchView({ searchValue, setSearchValue }: { searchValue: string; setS
 
     useEffect(() => {
         getModels();
-        document.title = "Search: " + searchValue;
+        document.title = "Search: " + searchValue + " - MeshVault";
     }, [searchValue]);
 
     useEffect(() => {
