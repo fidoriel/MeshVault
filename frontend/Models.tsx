@@ -1,13 +1,13 @@
 import React, { ReactNode, useEffect, useRef, useCallback } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Heart, Bookmark, ChevronDown, ChevronRight, Loader2 } from "lucide-react";
+import { Heart, ChevronDown, ChevronRight, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ModelResponse, ModelResponseList } from "./bindings";
 import { BACKEND_BASE_URL } from "./lib/api";
 import { Link } from "react-router-dom";
 import { Checkbox } from "./components/ui/checkbox";
+import { CollectionDropdown } from "./components/CollectionDropdown";
 
 function FilterSection({ title, children }: { title: string; children: ReactNode }) {
     const [isOpen, setIsOpen] = React.useState(true);
@@ -73,9 +73,7 @@ export function ModelCard({ model }: { model: ModelResponse }) {
                             )}
                         </button>
                     </div>
-                    <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
-                        <Bookmark className="w-4 h-4" />
-                    </Button>
+                    <CollectionDropdown modelId={model.id} />
                 </div>
             </div>
         </Card>

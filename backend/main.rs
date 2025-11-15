@@ -36,10 +36,14 @@ pub mod schema;
 pub mod stream_dl;
 pub mod types;
 pub mod upload;
-use crate::schema::models3d;
+use crate::schema::{collections, model_collections, models3d};
 use crate::types::File3D;
 use crate::types::ListModelParams;
 use crate::types::Model3D;
+use crate::types::{
+    AddModelToCollectionRequest, Collection, CollectionResponse, DetailedCollectionResponse,
+    NewCollection, NewModelCollection, UpdateCollectionRequest,
+};
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Config {
@@ -369,6 +373,199 @@ async fn handle_zip_download(
     stream_dl::zip_folder_stream(path, &state.config).await
 }
 
+// ============ Collections Handlers ============
+
+async fn list_collections(State(state): State<AppState>) -> impl IntoResponse {
+    let mut connection = state.pool.get().await.unwrap();
+
+    let collections = collections::table
+        .load::<Collection>(&mut connection)
+        .await
+        .unwrap();
+
+    let mut responses: Vec<CollectionResponse> = Vec::new();
+    for collection in collections {
+        let response =
+            CollectionResponse::from_collection(&collection, &state.config, &mut connection)
+                .await
+                .unwrap();
+        responses.push(response);
+    }
+
+    (StatusCode::OK, Json(responses))
+}
+
+async fn get_collection(State(state): State<AppState>, Path(id): Path<i32>) -> impl IntoResponse {
+    let mut connection = state.pool.get().await.unwrap();
+
+    let collection = collections::table
+        .filter(collections::id.eq(id))
+        .first::<Collection>(&mut connection)
+        .await
+        .unwrap();
+
+    let response =
+        DetailedCollectionResponse::from_collection(&collection, &state.config, &mut connection)
+            .await
+            .unwrap();
+
+    (StatusCode::OK, Json(response))
+}
+
+async fn create_collection(
+    State(state): State<AppState>,
+    Json(new_collection): Json<NewCollection>,
+) -> impl IntoResponse {
+    let mut connection = state.pool.get().await.unwrap();
+
+    let collection = diesel::insert_into(collections::table)
+        .values(&new_collection)
+        .returning(Collection::as_returning())
+        .get_result(&mut connection)
+        .await
+        .unwrap();
+
+    let response = CollectionResponse::from_collection(&collection, &state.config, &mut connection)
+        .await
+        .unwrap();
+
+    (StatusCode::CREATED, Json(response))
+}
+
+async fn update_collection(
+    State(state): State<AppState>,
+    Path(id): Path<i32>,
+    Json(update_req): Json<UpdateCollectionRequest>,
+) -> impl IntoResponse {
+    let mut connection = state.pool.get().await.unwrap();
+
+    diesel::update(collections::table.filter(collections::id.eq(id)))
+        .set(collections::name.eq(update_req.name))
+        .execute(&mut connection)
+        .await
+        .unwrap();
+
+    let collection = collections::table
+        .filter(collections::id.eq(id))
+        .first::<Collection>(&mut connection)
+        .await
+        .unwrap();
+
+    let response = CollectionResponse::from_collection(&collection, &state.config, &mut connection)
+        .await
+        .unwrap();
+
+    (StatusCode::OK, Json(response))
+}
+
+async fn delete_collection(
+    State(state): State<AppState>,
+    Path(id): Path<i32>,
+) -> impl IntoResponse {
+    let mut connection = state.pool.get().await.unwrap();
+
+    let collection = collections::table
+        .filter(collections::id.eq(id))
+        .first::<Collection>(&mut connection)
+        .await
+        .unwrap();
+
+    match collection.delete(&mut connection).await {
+        Ok(_) => StatusCode::OK,
+        Err(_) => StatusCode::INTERNAL_SERVER_ERROR,
+    }
+}
+
+async fn add_model_to_collection(
+    State(state): State<AppState>,
+    Json(request): Json<AddModelToCollectionRequest>,
+) -> impl IntoResponse {
+    let mut connection = state.pool.get().await.unwrap();
+
+    let new_model_collection = NewModelCollection {
+        model_id: request.model_id,
+        collection_id: request.collection_id,
+    };
+
+    // Check if the relationship already exists
+    let existing = model_collections::table
+        .filter(
+            model_collections::model_id
+                .eq(request.model_id)
+                .and(model_collections::collection_id.eq(request.collection_id)),
+        )
+        .first::<types::ModelCollection>(&mut connection)
+        .await;
+
+    match existing {
+        Ok(_) => {
+            // Already exists, return OK
+            StatusCode::OK
+        }
+        Err(_) => {
+            // Doesn't exist, insert it
+            diesel::insert_into(model_collections::table)
+                .values(&new_model_collection)
+                .execute(&mut connection)
+                .await
+                .unwrap();
+
+            StatusCode::CREATED
+        }
+    }
+}
+
+async fn remove_model_from_collection(
+    State(state): State<AppState>,
+    Path((collection_id, model_id)): Path<(i32, i32)>,
+) -> impl IntoResponse {
+    let mut connection = state.pool.get().await.unwrap();
+
+    diesel::delete(
+        model_collections::table.filter(
+            model_collections::model_id
+                .eq(model_id)
+                .and(model_collections::collection_id.eq(collection_id)),
+        ),
+    )
+    .execute(&mut connection)
+    .await
+    .unwrap();
+
+    StatusCode::OK
+}
+
+async fn get_model_collections(
+    State(state): State<AppState>,
+    Path(model_id): Path<i32>,
+) -> impl IntoResponse {
+    let mut connection = state.pool.get().await.unwrap();
+
+    let collection_ids: Vec<i32> = model_collections::table
+        .filter(model_collections::model_id.eq(model_id))
+        .select(model_collections::collection_id)
+        .load::<i32>(&mut connection)
+        .await
+        .unwrap();
+
+    let collections = collections::table
+        .filter(collections::id.eq_any(collection_ids))
+        .load::<Collection>(&mut connection)
+        .await
+        .unwrap();
+
+    let mut responses: Vec<CollectionResponse> = Vec::new();
+    for collection in collections {
+        let response =
+            CollectionResponse::from_collection(&collection, &state.config, &mut connection)
+                .await
+                .unwrap();
+        responses.push(response);
+    }
+
+    (StatusCode::OK, Json(responses))
+}
+
 pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("./migrations");
 
 async fn create_connection_pool(config: &Config) -> Pool<SyncConnectionWrapper<SqliteConnection>> {
@@ -443,6 +640,18 @@ async fn main() {
         .route("/file/:id/convert/:target_type", get(convert_file))
         .route("/download/:folder", get(handle_zip_download))
         .route("/upload", post(upload::handle_upload))
+        // Collections routes
+        .route("/collections", get(list_collections))
+        .route("/collections", post(create_collection))
+        .route("/collection/:id", get(get_collection))
+        .route("/collection/:id", post(update_collection))
+        .route("/collection/:id/delete", post(delete_collection))
+        .route("/collection/add_model", post(add_model_to_collection))
+        .route(
+            "/collection/:collection_id/remove_model/:model_id",
+            post(remove_model_from_collection),
+        )
+        .route("/model/:model_id/collections", get(get_model_collections))
         .layer(DefaultBodyLimit::disable())
         .with_state(app_state);
 

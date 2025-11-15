@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use crate::parse_library::{add_or_update_model, clean_file_system, load_files_and_preview};
-use crate::schema::{files3d, models3d};
+use crate::schema::{collections, files3d, model_collections, models3d};
 use crate::Config;
 use anyhow::{Error, Result};
 use chrono::NaiveDateTime;
@@ -606,4 +606,182 @@ impl Default for ListModelParams {
             favourite: None,
         }
     }
+}
+
+// ============ Collections Types ============
+
+#[typeshare]
+#[derive(Debug, Serialize, Deserialize, Queryable, Identifiable, Selectable, Clone)]
+#[diesel(table_name = collections)]
+pub struct Collection {
+    pub id: i32,
+    pub name: String,
+    pub date_added: Option<NaiveDateTime>,
+}
+
+impl Collection {
+    pub async fn get_models<Conn>(&self, connection: &mut Conn) -> Result<Vec<Model3D>, Error>
+    where
+        Conn: AsyncConnection<Backend = diesel::sqlite::Sqlite>,
+    {
+        let model_ids: Vec<i32> = model_collections::table
+            .filter(model_collections::collection_id.eq(self.id))
+            .select(model_collections::model_id)
+            .load::<i32>(connection)
+            .await?;
+
+        let models = models3d::table
+            .filter(models3d::id.eq_any(model_ids))
+            .load::<Model3D>(connection)
+            .await?;
+
+        Ok(models)
+    }
+
+    pub async fn delete<Conn>(&self, connection: &mut Conn) -> anyhow::Result<()>
+    where
+        Conn: AsyncConnection<Backend = diesel::sqlite::Sqlite>,
+    {
+        diesel::delete(collections::table.filter(collections::id.eq(self.id)))
+            .execute(connection)
+            .await?;
+
+        anyhow::Ok(())
+    }
+}
+
+#[typeshare]
+#[derive(Debug, Serialize, Deserialize, Insertable)]
+#[diesel(table_name = collections)]
+pub struct NewCollection {
+    pub name: String,
+}
+
+#[typeshare]
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CollectionResponse {
+    pub id: i32,
+    pub name: String,
+    pub model_count: i32,
+    pub preview_images: Vec<String>,
+}
+
+impl CollectionResponse {
+    pub async fn from_collection<Conn>(
+        collection: &Collection,
+        config: &Config,
+        connection: &mut Conn,
+    ) -> Result<CollectionResponse, Error>
+    where
+        Conn: AsyncConnection<Backend = diesel::sqlite::Sqlite>,
+    {
+        let model_count = model_collections::table
+            .filter(model_collections::collection_id.eq(collection.id))
+            .count()
+            .get_result::<i64>(connection)
+            .await
+            .unwrap_or(0) as i32;
+
+        // Get up to 4 preview images from models in this collection
+        let model_ids: Vec<i32> = model_collections::table
+            .filter(model_collections::collection_id.eq(collection.id))
+            .select(model_collections::model_id)
+            .limit(4)
+            .load::<i32>(connection)
+            .await
+            .unwrap_or_default();
+
+        let mut preview_images: Vec<String> = Vec::new();
+        for model_id in model_ids {
+            if let Ok(model) = models3d::table
+                .filter(models3d::id.eq(model_id))
+                .first::<Model3D>(connection)
+                .await
+            {
+                let model_response = ModelResponse::from_model_3d(&model, config, connection)
+                    .await
+                    .unwrap();
+                if !model_response.images.is_empty() {
+                    preview_images.push(model_response.images[0].clone());
+                }
+            }
+            if preview_images.len() >= 4 {
+                break;
+            }
+        }
+
+        Ok(CollectionResponse {
+            id: collection.id,
+            name: collection.name.clone(),
+            model_count,
+            preview_images,
+        })
+    }
+}
+
+#[typeshare]
+#[derive(Debug, Serialize, Deserialize)]
+pub struct DetailedCollectionResponse {
+    pub id: i32,
+    pub name: String,
+    pub models: Vec<ModelResponse>,
+}
+
+impl DetailedCollectionResponse {
+    pub async fn from_collection<Conn>(
+        collection: &Collection,
+        config: &Config,
+        connection: &mut Conn,
+    ) -> Result<Self, Error>
+    where
+        Conn: AsyncConnection<Backend = diesel::sqlite::Sqlite>,
+    {
+        let models = collection.get_models(connection).await?;
+        let mut model_responses: Vec<ModelResponse> = Vec::new();
+
+        for model in models {
+            let model_response = ModelResponse::from_model_3d(&model, config, connection)
+                .await
+                .unwrap();
+            model_responses.push(model_response);
+        }
+
+        Ok(Self {
+            id: collection.id,
+            name: collection.name.clone(),
+            models: model_responses,
+        })
+    }
+}
+
+#[typeshare]
+#[derive(Debug, Serialize, Deserialize, Queryable, Identifiable, Selectable, Associations)]
+#[diesel(belongs_to(Model3D, foreign_key = model_id))]
+#[diesel(belongs_to(Collection, foreign_key = collection_id))]
+#[diesel(table_name = model_collections)]
+pub struct ModelCollection {
+    pub id: i32,
+    pub model_id: i32,
+    pub collection_id: i32,
+    pub date_added: Option<NaiveDateTime>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Insertable)]
+#[diesel(table_name = model_collections)]
+pub struct NewModelCollection {
+    pub model_id: i32,
+    pub collection_id: i32,
+}
+
+#[typeshare]
+#[derive(Debug, Serialize, Deserialize)]
+pub struct UpdateCollectionRequest {
+    pub name: String,
+}
+
+#[typeshare]
+#[derive(Debug, Serialize, Deserialize)]
+pub struct AddModelToCollectionRequest {
+    pub model_id: i32,
+    pub collection_id: i32,
 }
