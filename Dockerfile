@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM rust:1.82-bookworm AS rust-builder
+FROM --platform=$BUILDPLATFORM rust:1.91-bookworm AS rust-builder
 
 RUN apt-get update -y && apt-get install -y
 
@@ -50,7 +50,7 @@ RUN if [ "$TARGETPLATFORM" = "linux/arm64" ]; then \
 
 
 
-FROM --platform=$BUILDPLATFORM rust:1.82-bookworm AS rust-bindings-builder
+FROM --platform=$BUILDPLATFORM rust:1.91-bookworm AS rust-bindings-builder
 
 COPY Cargo.toml typeshare.toml ./
 RUN cargo install typeshare-cli
