@@ -55,7 +55,7 @@ export function ModelCard({ model }: { model: ModelResponse }) {
             </CardContent>
             <div className="p-3">
                 <div className="flex items-center gap-2 mb-2">
-                    <Link 
+                    <Link
                         to={`/?author=${encodeURIComponent(model.author || "")}`}
                         className="text-sm text-muted-foreground hover:text-primary hover:underline"
                     >
@@ -88,7 +88,7 @@ export function ModelCard({ model }: { model: ModelResponse }) {
 function Models() {
     const [searchParams] = useSearchParams();
     const authorFilter = searchParams.get("author");
-    
+
     const [models, setModels] = useState<ModelResponse[]>([]);
     const [licenses, setLicenses] = useState<string[]>([]);
     const [selectedLicenses, setSelectedLicenses] = useState<string[]>([]);
@@ -97,7 +97,7 @@ function Models() {
     const [hasMore, setHasMore] = useState(true);
     const observerTarget = useRef<HTMLDivElement>(null);
 
-    const PAGE_SIZE = 1;
+    const PAGE_SIZE = 100;
 
     const fetchModels = useCallback(
         async (pageNum: number, reset: boolean = false) => {
@@ -198,9 +198,7 @@ function Models() {
         <div className="min-h-screen bg-background text-foreground">
             <div className="max-w-screen-2xl mx-auto p-3">
                 <div className="flex items-center justify-between mb-6">
-                    <h1 className="text-3xl font-bold">
-                        {authorFilter ? `Models by ${authorFilter}` : "Models"}
-                    </h1>
+                    <h1 className="text-3xl font-bold">{authorFilter ? `Models by ${authorFilter}` : "Models"}</h1>
                 </div>
 
                 <div className="flex gap-6">

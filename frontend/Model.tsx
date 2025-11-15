@@ -224,7 +224,7 @@ function InfoCard({ model, refresh }: { model: DetailedModelResponse; refresh: (
 
             <div className="mb-6">
                 <div className="space-y-4">
-                    <Link 
+                    <Link
                         to={`/?author=${encodeURIComponent(model.author || "")}`}
                         className="font-medium text-gray-400 hover:text-primary hover:underline cursor-pointer inline-block"
                     >
