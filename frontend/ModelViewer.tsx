@@ -29,8 +29,9 @@ function ModelViewer({ file_path }: { file_path: string }) {
 
         const scene = new THREE.Scene();
         const camera = new THREE.PerspectiveCamera(75, mount.clientWidth / mount.clientHeight, 0.1, 1000);
-        const renderer = new THREE.WebGLRenderer();
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(mount.clientWidth, mount.clientHeight);
+        renderer.domElement.style.display = "block"; // Remove default inline spacing
         mount.appendChild(renderer.domElement);
 
         const light = new THREE.DirectionalLight(0xffffff, 1);
@@ -114,7 +115,7 @@ function ModelViewer({ file_path }: { file_path: string }) {
     }, [file_path]);
 
     return (
-        <div ref={mountRef} className="flex-1 w-full h-full">
+        <div ref={mountRef} className="flex-1 w-full h-full rounded-xl overflow-hidden">
             {loading && !error && (
                 <div className="flex items-center justify-center fixed inset-0">
                     <Loader2 className="animate-spin" size={64} />
