@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Download, Heart, MoreVertical, RefreshCcw, Bookmark } from "lucide-react";
+import { Download, Heart, MoreVertical, RefreshCcw } from "lucide-react";
 
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
@@ -36,6 +36,7 @@ import {
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useTheme } from "./components/theme-provider";
+import { CollectionDropdown } from "./components/CollectionDropdown";
 
 function OptionsDropdownMenu({ model }: { model: DetailedModelResponse }) {
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -265,9 +266,7 @@ function InfoCard({ model, refresh }: { model: DetailedModelResponse; refresh: (
                     >
                         <RefreshCcw className={"h-5 w-5"} />
                     </Button>
-                    <Button variant="outline" className="w-full">
-                        <Bookmark className="h-5 w-5" />
-                    </Button>
+                    <CollectionDropdown modelId={model.id} variant="outline" size="default" />
                 </div>
             </div>
             <div className="space-y-2">

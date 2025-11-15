@@ -3,6 +3,7 @@ import Model from "./Model";
 import { Search } from "./components/search";
 import { ThemeProvider, useTheme } from "./components/theme-provider";
 import Models from "./Models";
+import Collections from "./Collections";
 import { BrowserRouter, Routes, Route, Link } from "react-router-dom";
 import { RefreshCcw, Upload } from "lucide-react";
 import { useState } from "react";
@@ -81,6 +82,9 @@ function Navbar({ searchValue, setSearchValue }: { searchValue: string; setSearc
                     <NavLink to="/favourite" className={({ isActive }) => (isActive ? ACTIVE_NAV : NON_ACTIVE_NAV)}>
                         <span className="flex items-center gap-1">Favourites</span>
                     </NavLink>
+                    <NavLink to="/collections" className={({ isActive }) => (isActive ? ACTIVE_NAV : NON_ACTIVE_NAV)}>
+                        Collections
+                    </NavLink>
                     <NavLink to="/modelpack" className={({ isActive }) => (isActive ? ACTIVE_NAV : NON_ACTIVE_NAV)}>
                         About ModelPack
                     </NavLink>
@@ -113,6 +117,7 @@ function App() {
                 <div className="container mx-auto py-6">
                     <Routes>
                         <Route path="/" element={<Models />} />
+                        <Route path="/collections" element={<Collections />} />
                         <Route path="/upload" element={<UploadModel />} />
                         <Route path="/model/:slug" element={<Model />} />
                         <Route path="/model/:slug/edit" element={<EditModel />} />
