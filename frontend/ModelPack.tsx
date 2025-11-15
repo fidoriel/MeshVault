@@ -1,6 +1,11 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useEffect } from "react";
 
 const AboutModelPack = () => {
+    useEffect(() => {
+        document.title = "About ModelPack - MeshVault";
+    }, []);
+
     return (
         <div className="min-h-screen bg-background text-foreground">
             <div className="max-w-screen-2xl mx-auto p-6">

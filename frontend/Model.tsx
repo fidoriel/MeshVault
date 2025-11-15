@@ -481,7 +481,7 @@ function Model() {
             })
             .then((response_models: DetailedModelResponse) => {
                 setModel(response_models);
-                document.title = response_models.title;
+                document.title = response_models.title + " - MeshVault";
             })
             .catch((error) => {
                 console.error("Fetch error:", error);

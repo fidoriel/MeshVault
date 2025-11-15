@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { X, Loader2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -30,6 +30,10 @@ function UploadModel() {
 
     const { toast } = useToast();
     const navigate = useNavigate();
+
+    useEffect(() => {
+        document.title = "Upload Model - MeshVault";
+    }, []);
 
     const handleFilesDrop = ({
         cadFiles: newCadFiles,
