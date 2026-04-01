@@ -106,6 +106,8 @@ function OptionsDropdownMenu({ model }: { model: DetailedModelResponse }) {
 function ImageGallery({ model }: { model: DetailedModelResponse }) {
     const [selectedImage, setSelectedImage] = useState<number>(0);
     const thumbnailsRef = useRef<HTMLDivElement>(null);
+    const selectedImagePath = model.images[selectedImage];
+    const selectedRenderedFile = model.files.find((file) => file.preview_image === selectedImagePath);
 
     const nextImage = () => {
         setSelectedImage((prev) => (prev + 1) % model.images.length);
@@ -150,11 +152,33 @@ function ImageGallery({ model }: { model: DetailedModelResponse }) {
                 <CardContent className="p-0">
                     <AspectRatio ratio={4 / 3}>
                         <img
-                            src={`${BACKEND_BASE_URL}${model.images[selectedImage]}`}
+                            src={`${BACKEND_BASE_URL}${selectedImagePath}`}
                             alt="Model Preview"
                             className="w-full h-full object-cover rounded-lg"
                         />
                     </AspectRatio>
+                    {selectedRenderedFile && (
+                        <div className="absolute right-3 bottom-3 z-10 flex flex-col items-end gap-2">
+                            <Dialog>
+                                <DialogTrigger asChild>
+                                    <Button variant="outline" size="sm" className="bg-black/70 hover:bg-black/80 text-white">
+                                        Open 3D Viewer
+                                    </Button>
+                                </DialogTrigger>
+                                <DialogContent className="w-full h-full max-w-[90vw] max-h-[90vh] flex flex-col">
+                                    <DialogHeader>
+                                        <DialogTitle className="large-text">3D Viewer: {selectedRenderedFile.name}</DialogTitle>
+                                        <DialogDescription className="large-text">
+                                            Pan with Right Mouse Button, Rotate with Left Mouse Button and Zoom with Scroll
+                                            Wheel
+                                        </DialogDescription>
+                                    </DialogHeader>
+                                    <ModelViewer file_path={selectedRenderedFile.file_path} />
+                                </DialogContent>
+                            </Dialog>
+                            <div className="rounded-md bg-black/70 px-2 py-1 text-xs text-white">{selectedRenderedFile.name}</div>
+                        </div>
+                    )}
                     <button
                         onClick={previousImage}
                         className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity"
