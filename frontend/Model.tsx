@@ -169,8 +169,7 @@ function ImageGallery({ model }: { model: DetailedModelResponse }) {
                                     <DialogHeader>
                                         <DialogTitle className="large-text">3D Viewer: {selectedRenderedFile.name}</DialogTitle>
                                         <DialogDescription className="large-text">
-                                            Pan with Right Mouse Button, Rotate with Left Mouse Button and Zoom with Scroll
-                                            Wheel
+                                            Pan with Right Mouse Button, Rotate with Left Mouse Button and Zoom with Scroll Wheel
                                         </DialogDescription>
                                     </DialogHeader>
                                     <ModelViewer file_path={selectedRenderedFile.file_path} />
